@@ -1,0 +1,136 @@
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  BookOpen, 
+  FileText, 
+  Lightbulb,
+  GraduationCap,
+  Menu,
+  X
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+
+interface MainLayoutProps {
+  children: React.ReactNode;
+}
+
+const navItems = [
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/practice', label: 'Practice', icon: BookOpen },
+  { path: '/notes', label: 'Study Notes', icon: FileText },
+  { path: '/recommendations', label: 'AI Recommendations', icon: Lightbulb },
+];
+
+const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+  const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 z-50 border-r bg-card">
+        {/* Logo */}
+        <div className="flex h-16 items-center gap-2 px-6 border-b">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-primary">
+            <GraduationCap className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <span className="font-bold text-lg">StudyAI</span>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 py-6 px-4 space-y-1">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
+                  isActive 
+                    ? "bg-primary text-primary-foreground shadow-sm" 
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div className="p-4 border-t">
+          <div className="rounded-lg bg-muted p-4">
+            <p className="text-xs text-muted-foreground">
+              🎯 Remember: This tool is for <strong>learning</strong>, not shortcuts. 
+              Always attempt questions before viewing explanations!
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile Header */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="flex h-full items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-primary">
+              <GraduationCap className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="font-bold">StudyAI</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
+      </header>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
+          <div 
+            className="fixed top-16 left-0 right-0 bg-card border-b shadow-lg animate-slide-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <nav className="p-4 space-y-1">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all",
+                      isActive 
+                        ? "bg-primary text-primary-foreground" 
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="flex-1 lg:ml-64">
+        <div className="pt-16 lg:pt-0">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default MainLayout;
