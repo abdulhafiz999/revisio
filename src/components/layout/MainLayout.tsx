@@ -36,7 +36,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-primary">
             <GraduationCap className="h-6 w-6 text-primary-foreground" />
           </div>
-          <span className="font-bold text-lg">StudyAI</span>
+          <span className="font-bold text-lg">REVISIO</span>
         </div>
 
         {/* Navigation */}
