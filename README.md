@@ -1,8 +1,4 @@
-I'm# Welcome to REVISIO
-
-## Project info
-
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Welcome to REVISIO
 
 ## How can I edit this code?
 
