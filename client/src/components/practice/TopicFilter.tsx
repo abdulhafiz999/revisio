@@ -1,5 +1,5 @@
 import React from 'react';
-import { Topic } from '@/data/mockData';
+import { Topic } from '@/services/api.client';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Filter } from 'lucide-react';

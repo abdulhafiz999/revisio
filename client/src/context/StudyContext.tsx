@@ -1,56 +1,93 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { 
-  Question, 
-  AttemptHistory, 
-  StudentProgress,
-  studentProgress as initialProgress,
-  attemptHistory as initialHistory 
-} from '@/data/mockData';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiClient, UserProgress, Attempt } from '@/services/api.client';
+import { useAuth } from '@/context/AuthContext';
 
 interface StudyContextType {
-  progress: StudentProgress;
-  history: AttemptHistory[];
-  recordAttempt: (questionId: string, studentAnswer: string, isCorrect: boolean, timeSpent: number) => void;
-  getQuestionAttempt: (questionId: string) => AttemptHistory | undefined;
+  progress: UserProgress | null;
+  history: Attempt[];
+  recordAttempt: (questionId: string, studentAnswer: string, timeSpent: number) => Promise<boolean>;
+  getQuestionAttempt: (questionId: string) => Attempt | undefined;
   hasAttempted: (questionId: string) => boolean;
+  refreshProgress: () => Promise<void>;
+  loading: boolean;
 }
 
 const StudyContext = createContext<StudyContextType | undefined>(undefined);
 
 export const StudyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [progress, setProgress] = useState<StudentProgress>(initialProgress);
-  const [history, setHistory] = useState<AttemptHistory[]>(initialHistory);
+  const [progress, setProgress] = useState<UserProgress | null>(null);
+  const [history, setHistory] = useState<Attempt[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { isAuthenticated } = useAuth();
 
-  const recordAttempt = (
-    questionId: string, 
-    studentAnswer: string, 
-    isCorrect: boolean, 
-    timeSpent: number
-  ) => {
-    const newAttempt: AttemptHistory = {
-      questionId,
-      attemptedAt: new Date().toISOString(),
-      studentAnswer,
-      isCorrect,
-      timeSpent
+  // Only load data when user is authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setProgress(null);
+      setHistory([]);
+      return;
+    }
+
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [progressData, recentActivity] = await Promise.all([
+          apiClient.getProgress(),
+          apiClient.getRecentActivity()
+        ]);
+        setProgress(progressData);
+        setHistory(recentActivity);
+      } catch (error) {
+        console.error('Failed to load progress data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setHistory(prev => [...prev, newAttempt]);
-    
-    setProgress(prev => ({
-      ...prev,
-      totalAttempted: prev.totalAttempted + 1,
-      correctAnswers: isCorrect ? prev.correctAnswers + 1 : prev.correctAnswers,
-      wrongAnswers: isCorrect ? prev.wrongAnswers : prev.wrongAnswers + 1
-    }));
+    loadData();
+  }, [isAuthenticated]);
+
+  const refreshProgress = async () => {
+    try {
+      const [progressData, recentActivity] = await Promise.all([
+        apiClient.getProgress(),
+        apiClient.getRecentActivity()
+      ]);
+      setProgress(progressData);
+      setHistory(recentActivity);
+    } catch (error) {
+      console.error('Failed to refresh progress data:', error);
+    }
   };
 
-  const getQuestionAttempt = (questionId: string): AttemptHistory | undefined => {
-    return history.find(h => h.questionId === questionId);
+  const recordAttempt = async (
+    questionId: string, 
+    studentAnswer: string, 
+    timeSpent: number
+  ): Promise<boolean> => {
+    try {
+      const result = await apiClient.submitAnswer({
+        question_id: questionId,
+        student_answer: studentAnswer,
+        time_spent_seconds: timeSpent
+      });
+
+      // Refresh progress and history after successful submission
+      await refreshProgress();
+
+      return result.is_correct;
+    } catch (error) {
+      console.error('Failed to record attempt:', error);
+      throw error;
+    }
+  };
+
+  const getQuestionAttempt = (questionId: string): Attempt | undefined => {
+    return history.find(h => h.question_id === questionId);
   };
 
   const hasAttempted = (questionId: string): boolean => {
-    return history.some(h => h.questionId === questionId);
+    return history.some(h => h.question_id === questionId);
   };
 
   return (
@@ -59,7 +96,9 @@ export const StudyProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       history,
       recordAttempt,
       getQuestionAttempt,
-      hasAttempted
+      hasAttempted,
+      refreshProgress,
+      loading
     }}>
       {children}
     </StudyContext.Provider>

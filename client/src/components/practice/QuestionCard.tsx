@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Question } from '@/data/mockData';
+import { Question } from '@/services/api.client';
 import { useStudy } from '@/context/StudyContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   Clock,
   Sparkles
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface QuestionCardProps {
   question: Question;
@@ -34,6 +35,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [showHints, setShowHints] = useState(false);
   const [startTime] = useState(Date.now());
+  const [submitting, setSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const previousAttempt = getQuestionAttempt(question.id);
   const alreadyAttempted = hasAttempted(question.id);
@@ -41,21 +44,28 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
   // If already attempted, show that state
   React.useEffect(() => {
     if (previousAttempt) {
-      setSelectedAnswer(previousAttempt.studentAnswer);
-      setAnswerState(previousAttempt.isCorrect ? 'correct' : 'incorrect');
+      setSelectedAnswer(previousAttempt.student_answer);
+      setAnswerState(previousAttempt.is_correct ? 'correct' : 'incorrect');
     }
   }, [previousAttempt]);
 
-  const handleSubmit = () => {
-    if (!selectedAnswer) return;
+  const handleSubmit = async () => {
+    if (!selectedAnswer || submitting) return;
     
-    const isCorrect = selectedAnswer === question.correctAnswer;
+    setSubmitting(true);
     const timeSpent = Math.round((Date.now() - startTime) / 1000);
     
-    setAnswerState(isCorrect ? 'correct' : 'incorrect');
-    
-    if (!alreadyAttempted) {
-      recordAttempt(question.id, selectedAnswer, isCorrect, timeSpent);
+    try {
+      const isCorrect = await recordAttempt(question.id, selectedAnswer, timeSpent);
+      setAnswerState(isCorrect ? 'correct' : 'incorrect');
+    } catch (error) {
+      toast({
+        title: 'Submission failed',
+        description: 'Failed to submit your answer. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -110,14 +120,14 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
       </div>
 
       {/* Question */}
-      <p className="text-lg font-medium mb-6">{question.question}</p>
+      <p className="text-lg font-medium mb-6">{question.question_text}</p>
 
       {/* Options */}
       {question.options && (
         <div className="space-y-3 mb-6">
           {question.options.map((option, optIndex) => {
             const isSelected = selectedAnswer === option;
-            const isCorrectOption = option === question.correctAnswer;
+            const isCorrectOption = option === question.correct_answer;
             const showResult = answerState !== 'unanswered';
             
             return (
@@ -163,10 +173,10 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
         <div className="flex items-center gap-3">
           <Button 
             onClick={handleSubmit}
-            disabled={!selectedAnswer}
+            disabled={!selectedAnswer || submitting}
             className="bg-gradient-primary hover:opacity-90"
           >
-            Submit Answer
+            {submitting ? 'Submitting...' : 'Submit Answer'}
           </Button>
           <Button
             variant="outline"
@@ -180,7 +190,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
       )}
 
       {/* Hints (only before answering) */}
-      {showHints && answerState === 'unanswered' && (
+      {showHints && answerState === 'unanswered' && question.hints && question.hints.length > 0 && (
         <div className="mt-4 p-4 rounded-lg bg-warning/10 border border-warning/20 animate-slide-up">
           <div className="flex items-center gap-2 mb-2">
             <Lightbulb className="h-4 w-4 text-warning" />
@@ -227,20 +237,22 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
               </div>
 
               {/* Common mistakes */}
-              <div className="p-4 rounded-lg bg-warning/5 border border-warning/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  <h4 className="font-medium text-warning">Common Mistakes to Avoid</h4>
+              {question.common_mistakes && question.common_mistakes.length > 0 && (
+                <div className="p-4 rounded-lg bg-warning/5 border border-warning/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    <h4 className="font-medium text-warning">Common Mistakes to Avoid</h4>
+                  </div>
+                  <ul className="space-y-2">
+                    {question.common_mistakes.map((mistake, i) => (
+                      <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-warning">•</span>
+                        {mistake}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="space-y-2">
-                  {question.commonMistakes.map((mistake, i) => (
-                    <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
-                      <span className="text-warning">•</span>
-                      {mistake}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              )}
 
               {/* Encouragement */}
               <div className="p-4 rounded-lg bg-muted text-center">

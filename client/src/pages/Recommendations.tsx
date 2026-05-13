@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { useStudy } from '@/context/StudyContext';
-import { getTopicById, getCourseById, topics, courses } from '@/data/mockData';
 import { 
   Lightbulb, 
   Target, 
@@ -15,52 +14,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { apiClient, Recommendation } from '@/services/api.client';
+import { useApi } from '@/hooks/useApi';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Recommendations: React.FC = () => {
   const { progress } = useStudy();
+  const { data: recommendations, loading, execute: fetchRecommendations } = useApi(apiClient.getRecommendations);
 
-  // Generate AI-style recommendations based on performance
-  const generateRecommendations = () => {
-    const recommendations = [];
-
-    // Weak topic recommendations
-    progress.weakTopics.forEach(({ topicId, score }) => {
-      const topic = getTopicById(topicId);
-      if (topic) {
-        const course = getCourseById(topic.courseId);
-        recommendations.push({
-          type: 'weak',
-          priority: 'high',
-          title: `Focus on ${topic.name}`,
-          description: `Your accuracy in this topic is ${score}%. Review the fundamentals and practice more questions.`,
-          action: `/practice/${topic.courseId}`,
-          actionLabel: 'Practice Now',
-          course: course?.name
-        });
-      }
-    });
-
-    // Strength building recommendations
-    progress.strongTopics.slice(0, 2).forEach(({ topicId, score }) => {
-      const topic = getTopicById(topicId);
-      if (topic) {
-        const course = getCourseById(topic.courseId);
-        recommendations.push({
-          type: 'strong',
-          priority: 'medium',
-          title: `Challenge yourself in ${topic.name}`,
-          description: `You're doing great at ${score}%! Try harder questions to deepen your mastery.`,
-          action: `/practice/${topic.courseId}`,
-          actionLabel: 'Try Harder Questions',
-          course: course?.name
-        });
-      }
-    });
-
-    return recommendations;
-  };
-
-  const recommendations = generateRecommendations();
+  useEffect(() => {
+    fetchRecommendations();
+  }, []);
 
   const studyTips = [
     {
@@ -85,6 +49,10 @@ const Recommendations: React.FC = () => {
     }
   ];
 
+  const accuracy = progress && progress.total_attempted > 0
+    ? Math.round((progress.correct_answers / progress.total_attempted) * 100)
+    : 0;
+
   return (
     <MainLayout>
       <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
@@ -100,82 +68,91 @@ const Recommendations: React.FC = () => {
         </div>
 
         {/* Performance Summary */}
-        <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-xl bg-primary/10">
-              <Sparkles className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg mb-2">Your Learning Summary</h3>
-              <p className="text-muted-foreground mb-4">
-                You've attempted <strong>{progress.totalAttempted}</strong> questions with{' '}
-                <strong>{Math.round((progress.correctAnswers / Math.max(progress.totalAttempted, 1)) * 100)}%</strong> accuracy.
-                {progress.streakDays > 0 && (
-                  <span> You're on a <strong>{progress.streakDays}-day streak</strong> — keep it up!</span>
-                )}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 rounded-full bg-success/10 text-success text-sm font-medium">
-                  {progress.strongTopics.length} Strong Topics
-                </span>
-                <span className="px-3 py-1 rounded-full bg-warning/10 text-warning text-sm font-medium">
-                  {progress.weakTopics.length} Topics to Improve
-                </span>
+        {progress && (
+          <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-primary/10">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg mb-2">Your Learning Summary</h3>
+                <p className="text-muted-foreground mb-4">
+                  You've attempted <strong>{progress.total_attempted}</strong> questions with{' '}
+                  <strong>{accuracy}%</strong> accuracy.
+                  {progress.streak_days > 0 && (
+                    <span> You're on a <strong>{progress.streak_days}-day streak</strong> — keep it up!</span>
+                  )}
+                </p>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Personalized Recommendations */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Recommended Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recommendations.map((rec, index) => (
-              <div 
-                key={index}
-                className={cn(
-                  "p-6 rounded-xl border transition-all hover:shadow-md",
-                  rec.type === 'weak' 
-                    ? "bg-warning/5 border-warning/20" 
-                    : "bg-success/5 border-success/20"
-                )}
-              >
-                <div className="flex items-start gap-3 mb-4">
-                  <div className={cn(
-                    "p-2 rounded-lg",
-                    rec.type === 'weak' ? "bg-warning/10" : "bg-success/10"
-                  )}>
-                    {rec.type === 'weak' ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-48 rounded-xl" />
+              ))}
+            </div>
+          ) : recommendations && recommendations.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {recommendations.map((rec, index) => (
+                <div 
+                  key={index}
+                  className="p-6 rounded-xl border bg-warning/5 border-warning/20 transition-all hover:shadow-md"
+                >
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-warning/10">
                       <TrendingUp className="h-5 w-5 text-warning" />
-                    ) : (
-                      <Target className="h-5 w-5 text-success" />
-                    )}
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-xs font-medium uppercase tracking-wide text-warning">
+                        High priority
+                      </span>
+                      <h3 className="font-semibold mt-1">{rec.topic_name}</h3>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <span className={cn(
-                      "text-xs font-medium uppercase tracking-wide",
-                      rec.type === 'weak' ? "text-warning" : "text-success"
-                    )}>
-                      {rec.priority} priority
-                    </span>
-                    <h3 className="font-semibold mt-1">{rec.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {rec.course}
+                  <div className="space-y-3 mb-4">
+                    <div>
+                      <p className="text-sm font-medium mb-1">Focus Areas:</p>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        {rec.suggested_focus_areas.map((area, i) => (
+                          <li key={i}>• {area}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-1">Study Tips:</p>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        {rec.study_tips.map((tip, i) => (
+                          <li key={i}>• {tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Estimated time:</strong> {rec.estimated_time}
                     </p>
                   </div>
+                  <Link to="/practice">
+                    <Button size="sm" variant="outline" className="w-full group">
+                      Practice Now
+                      <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {rec.description}
-                </p>
-                <Link to={rec.action}>
-                  <Button size="sm" variant="outline" className="w-full group">
-                    {rec.actionLabel}
-                    <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-card rounded-xl border">
+              <Sparkles className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">
+                Keep practicing to get personalized recommendations!
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Study Tips */}
@@ -202,28 +179,30 @@ const Recommendations: React.FC = () => {
         </div>
 
         {/* Weekly Goal Suggestion */}
-        <div className="p-6 rounded-xl border bg-card">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-accent/20">
-              <Target className="h-5 w-5 text-accent-foreground" />
+        {progress && (
+          <div className="p-6 rounded-xl border bg-card">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-accent/20">
+                <Target className="h-5 w-5 text-accent-foreground" />
+              </div>
+              <h3 className="font-semibold">Suggested Weekly Goal</h3>
             </div>
-            <h3 className="font-semibold">Suggested Weekly Goal</h3>
+            <p className="text-muted-foreground mb-4">
+              Based on your current pace, we recommend practicing <strong>20 questions</strong> per week 
+              with at least <strong>75% accuracy</strong> to steadily improve your weak areas.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-primary" />
+                <span className="text-sm">Current: {Math.round(progress.total_attempted / 4)}/week</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-success" />
+                <span className="text-sm">Goal: 20/week</span>
+              </div>
+            </div>
           </div>
-          <p className="text-muted-foreground mb-4">
-            Based on your current pace, we recommend practicing <strong>20 questions</strong> per week 
-            with at least <strong>75% accuracy</strong> to steadily improve your weak areas.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary" />
-              <span className="text-sm">Current: {Math.round(progress.totalAttempted / 4)}/week</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-success" />
-              <span className="text-sm">Goal: 20/week</span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </MainLayout>
   );

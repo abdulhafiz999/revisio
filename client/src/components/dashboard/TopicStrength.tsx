@@ -1,11 +1,11 @@
 import React from 'react';
-import { getTopicById } from '@/data/mockData';
+import { WeakTopic, StrongTopic } from '@/services/api.client';
 import { cn } from '@/lib/utils';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface TopicStrengthProps {
-  weakTopics: { topicId: string; score: number }[];
-  strongTopics: { topicId: string; score: number }[];
+  weakTopics: WeakTopic[];
+  strongTopics: StrongTopic[];
 }
 
 const TopicStrength: React.FC<TopicStrengthProps> = ({ weakTopics, strongTopics }) => {
@@ -21,23 +21,24 @@ const TopicStrength: React.FC<TopicStrengthProps> = ({ weakTopics, strongTopics 
             <h4 className="text-sm font-medium text-success">Strong Topics</h4>
           </div>
           <div className="space-y-3">
-            {strongTopics.slice(0, 3).map(({ topicId, score }) => {
-              const topic = getTopicById(topicId);
-              return (
-                <div key={topicId} className="space-y-1.5">
+            {strongTopics.length > 0 ? (
+              strongTopics.slice(0, 3).map((topic) => (
+                <div key={topic.topic_id} className="space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-foreground">{topic?.name || topicId}</span>
-                    <span className="font-medium text-success">{score}%</span>
+                    <span className="text-foreground">{topic.topic_name}</span>
+                    <span className="font-medium text-success">{Math.round(topic.accuracy_percentage)}%</span>
                   </div>
                   <div className="progress-bar">
                     <div 
                       className="progress-fill bg-gradient-success"
-                      style={{ width: `${score}%` }}
+                      style={{ width: `${topic.accuracy_percentage}%` }}
                     />
                   </div>
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No strong topics yet. Keep practicing!</p>
+            )}
           </div>
         </div>
 
@@ -48,23 +49,24 @@ const TopicStrength: React.FC<TopicStrengthProps> = ({ weakTopics, strongTopics 
             <h4 className="text-sm font-medium text-warning">Needs Improvement</h4>
           </div>
           <div className="space-y-3">
-            {weakTopics.slice(0, 3).map(({ topicId, score }) => {
-              const topic = getTopicById(topicId);
-              return (
-                <div key={topicId} className="space-y-1.5">
+            {weakTopics.length > 0 ? (
+              weakTopics.slice(0, 3).map((topic) => (
+                <div key={topic.topic_id} className="space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-foreground">{topic?.name || topicId}</span>
-                    <span className="font-medium text-warning">{score}%</span>
+                    <span className="text-foreground">{topic.topic_name}</span>
+                    <span className="font-medium text-warning">{Math.round(topic.accuracy_percentage)}%</span>
                   </div>
                   <div className="progress-bar">
                     <div 
                       className="progress-fill bg-warning"
-                      style={{ width: `${score}%` }}
+                      style={{ width: `${topic.accuracy_percentage}%` }}
                     />
                   </div>
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No weak topics identified yet.</p>
+            )}
           </div>
         </div>
       </div>

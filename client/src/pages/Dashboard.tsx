@@ -1,10 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import StatCard from '@/components/dashboard/StatCard';
 import ProgressChart from '@/components/dashboard/ProgressChart';
 import TopicStrength from '@/components/dashboard/TopicStrength';
 import { useStudy } from '@/context/StudyContext';
-import { courses } from '@/data/mockData';
 import { Link } from 'react-router-dom';
 import { 
   BookOpen, 
@@ -16,12 +15,40 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { apiClient, Course, WeakTopic, StrongTopic } from '@/services/api.client';
+import { useApi } from '@/hooks/useApi';
 
 const Dashboard: React.FC = () => {
-  const { progress } = useStudy();
-  const accuracy = progress.totalAttempted > 0 
-    ? Math.round((progress.correctAnswers / progress.totalAttempted) * 100) 
+  const { progress, history, loading: contextLoading } = useStudy();
+  const { data: courses, execute: fetchCourses } = useApi(apiClient.getCourses);
+  const { data: weakTopics, execute: fetchWeakTopics } = useApi(apiClient.getWeakTopics);
+  const { data: strongTopics, execute: fetchStrongTopics } = useApi(apiClient.getStrongTopics);
+
+  useEffect(() => {
+    fetchCourses();
+    fetchWeakTopics();
+    fetchStrongTopics();
+  }, []);
+
+  const accuracy = progress && progress.total_attempted > 0 
+    ? Math.round((progress.correct_answers / progress.total_attempted) * 100) 
     : 0;
+
+  if (contextLoading || !progress) {
+    return (
+      <MainLayout>
+        <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+          <Skeleton className="h-12 w-64" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32 rounded-xl" />
+            ))}
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -38,14 +65,14 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Questions Attempted"
-            value={progress.totalAttempted}
+            value={progress.total_attempted}
             subtitle="Total practice questions"
             icon={BookOpen}
             variant="primary"
           />
           <StatCard
             title="Correct Answers"
-            value={progress.correctAnswers}
+            value={progress.correct_answers}
             subtitle={`${accuracy}% accuracy`}
             icon={CheckCircle}
             variant="success"
@@ -53,14 +80,14 @@ const Dashboard: React.FC = () => {
           />
           <StatCard
             title="Wrong Answers"
-            value={progress.wrongAnswers}
+            value={progress.wrong_answers}
             subtitle="Review these topics"
             icon={XCircle}
             variant="warning"
           />
           <StatCard
             title="Study Streak"
-            value={`${progress.streakDays} days`}
+            value={`${progress.streak_days} days`}
             subtitle="Keep it going!"
             icon={Flame}
             variant="accent"
@@ -70,11 +97,11 @@ const Dashboard: React.FC = () => {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <ProgressChart data={progress.recentActivity} />
+            <ProgressChart data={history} />
           </div>
           <TopicStrength 
-            weakTopics={progress.weakTopics}
-            strongTopics={progress.strongTopics}
+            weakTopics={weakTopics || []}
+            strongTopics={strongTopics || []}
           />
         </div>
 
@@ -91,7 +118,7 @@ const Dashboard: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {courses.map(course => (
+            {(courses || []).map(course => (
               <Link
                 key={course.id}
                 to={`/practice/${course.id}`}
@@ -122,7 +149,11 @@ const Dashboard: React.FC = () => {
               <div>
                 <h3 className="font-semibold mb-1">Focus on Weak Areas</h3>
                 <p className="text-sm text-muted-foreground">
-                  Based on your performance, consider reviewing <strong>Sequences and Series</strong> and <strong>Algorithms</strong>.
+                  {weakTopics && weakTopics.length > 0 ? (
+                    <>Based on your performance, consider reviewing <strong>{weakTopics[0].topic_name}</strong>{weakTopics.length > 1 && ` and ${weakTopics.length - 1} other topic${weakTopics.length > 2 ? 's' : ''}`}.</>
+                  ) : (
+                    'Keep practicing to identify areas for improvement.'
+                  )}
                 </p>
               </div>
             </div>
@@ -136,7 +167,7 @@ const Dashboard: React.FC = () => {
               <div>
                 <h3 className="font-semibold mb-1">You're Improving!</h3>
                 <p className="text-sm text-muted-foreground">
-                  Your accuracy has increased by 12% this week. Keep practicing to maintain this momentum!
+                  Your accuracy is {accuracy}%. Keep practicing to maintain this momentum!
                 </p>
               </div>
             </div>

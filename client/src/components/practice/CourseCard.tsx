@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Course, getQuestionsByCourse, getTopicsByCourse } from '@/data/mockData';
+import { Course } from '@/services/api.client';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,8 +23,6 @@ const iconBgStyles = {
 };
 
 const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
-  const topics = getTopicsByCourse(course.id);
-  const questions = getQuestionsByCourse(course.id);
   const color = course.color as keyof typeof colorStyles;
 
   return (
@@ -57,12 +55,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
       
       <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/50">
         <div className="text-sm">
-          <span className="font-semibold text-foreground">{topics.length}</span>
-          <span className="text-muted-foreground ml-1">Topics</span>
-        </div>
-        <div className="text-sm">
-          <span className="font-semibold text-foreground">{questions.length}</span>
-          <span className="text-muted-foreground ml-1">Questions</span>
+          <span className="text-muted-foreground">Click to view topics and questions</span>
         </div>
       </div>
     </Link>

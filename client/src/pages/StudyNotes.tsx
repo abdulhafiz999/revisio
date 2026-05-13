@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { 
@@ -8,36 +8,26 @@ import {
   Sparkles, 
   FileQuestion,
   Lightbulb,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface UploadedNote {
-  id: string;
-  name: string;
-  uploadedAt: Date;
-  size: string;
-  status: 'processing' | 'ready' | 'error';
-}
+import { apiClient, StudyNote } from '@/services/api.client';
+import { useApi } from '@/hooks/useApi';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const StudyNotes: React.FC = () => {
-  const [uploadedNotes, setUploadedNotes] = useState<UploadedNote[]>([
-    {
-      id: '1',
-      name: 'CS101_Algorithms_Notes.pdf',
-      uploadedAt: new Date('2024-01-18'),
-      size: '2.4 MB',
-      status: 'ready'
-    },
-    {
-      id: '2',
-      name: 'MATH201_Integration_Slides.pdf',
-      uploadedAt: new Date('2024-01-15'),
-      size: '5.1 MB',
-      status: 'ready'
-    }
-  ]);
   const [isDragging, setIsDragging] = useState(false);
+  const { toast } = useToast();
+  
+  const { data: notes, loading, execute: fetchNotes } = useApi(apiClient.getNotes);
+  const { loading: uploading, execute: uploadPDF } = useApi(apiClient.uploadPDF);
+  const { execute: deleteNote } = useApi(apiClient.deleteNote);
+
+  useEffect(() => {
+    fetchNotes();
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -49,55 +39,58 @@ const StudyNotes: React.FC = () => {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     
     const files = Array.from(e.dataTransfer.files);
-    files.forEach(file => {
+    for (const file of files) {
       if (file.type === 'application/pdf') {
-        const newNote: UploadedNote = {
-          id: Date.now().toString(),
-          name: file.name,
-          uploadedAt: new Date(),
-          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          status: 'processing'
-        };
-        setUploadedNotes(prev => [newNote, ...prev]);
-        
-        // Simulate processing
-        setTimeout(() => {
-          setUploadedNotes(prev => 
-            prev.map(note => 
-              note.id === newNote.id ? { ...note, status: 'ready' as const } : note
-            )
-          );
-        }, 2000);
+        await handleFileUpload(file);
+      } else {
+        toast({
+          title: 'Invalid file type',
+          description: 'Only PDF files are supported',
+          variant: 'destructive',
+        });
       }
-    });
+    }
   }, []);
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      Array.from(files).forEach(file => {
-        const newNote: UploadedNote = {
-          id: Date.now().toString(),
-          name: file.name,
-          uploadedAt: new Date(),
-          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          status: 'processing'
-        };
-        setUploadedNotes(prev => [newNote, ...prev]);
-        
-        setTimeout(() => {
-          setUploadedNotes(prev => 
-            prev.map(note => 
-              note.id === newNote.id ? { ...note, status: 'ready' as const } : note
-            )
-          );
-        }, 2000);
+      for (const file of Array.from(files)) {
+        await handleFileUpload(file);
+      }
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    const result = await uploadPDF(file);
+    if (result) {
+      toast({
+        title: 'Upload successful',
+        description: `${file.name} has been uploaded and processed`,
       });
+      fetchNotes(); // Refresh the notes list
+    } else {
+      toast({
+        title: 'Upload failed',
+        description: 'Failed to upload the file. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDelete = async (noteId: string) => {
+    const result = await deleteNote(noteId);
+    if (result !== null) {
+      toast({
+        title: 'Note deleted',
+        description: 'The note has been removed',
+      });
+      fetchNotes(); // Refresh the notes list
     }
   };
 
@@ -151,7 +144,7 @@ const StudyNotes: React.FC = () => {
             </div>
             <div>
               <p className="font-medium">
-                {isDragging ? "Drop your files here" : "Drag and drop your PDF files here"}
+                {uploading ? "Uploading..." : isDragging ? "Drop your files here" : "Drag and drop your PDF files here"}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 or click to browse from your computer
@@ -164,8 +157,9 @@ const StudyNotes: React.FC = () => {
               onChange={handleFileInput}
               className="hidden"
               id="file-upload"
+              disabled={uploading}
             />
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" disabled={uploading}>
               <label htmlFor="file-upload" className="cursor-pointer">
                 Browse Files
               </label>
@@ -207,11 +201,20 @@ const StudyNotes: React.FC = () => {
         </div>
 
         {/* Uploaded Notes */}
-        {uploadedNotes.length > 0 && (
+        {loading ? (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Your Uploaded Notes</h2>
             <div className="space-y-3">
-              {uploadedNotes.map(note => (
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-24 rounded-xl" />
+              ))}
+            </div>
+          </div>
+        ) : notes && notes.length > 0 ? (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Your Uploaded Notes</h2>
+            <div className="space-y-3">
+              {notes.map(note => (
                 <div 
                   key={note.id}
                   className="flex items-center justify-between p-4 rounded-xl border bg-card hover:shadow-sm transition-shadow"
@@ -221,35 +224,30 @@ const StudyNotes: React.FC = () => {
                       <FileText className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">{note.name}</p>
+                      <p className="font-medium">{note.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {note.size} • Uploaded {note.uploadedAt.toLocaleDateString()}
+                        Uploaded {new Date(note.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {note.status === 'processing' ? (
-                      <span className="text-sm text-muted-foreground animate-pulse">
-                        Processing...
-                      </span>
-                    ) : (
-                      <>
-                        <Button variant="outline" size="sm">
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          Summarize
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Ask AI
-                        </Button>
-                      </>
-                    )}
+                    <Button variant="outline" size="sm">
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Ask AI
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDelete(note.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </MainLayout>
   );

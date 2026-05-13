@@ -1,14 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import CourseCard from '@/components/practice/CourseCard';
-import { courses } from '@/data/mockData';
 import { BookOpen, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { apiClient, Course } from '@/services/api.client';
+import { useApi } from '@/hooks/useApi';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Practice: React.FC = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const { data: courses, loading, error, execute } = useApi(apiClient.getCourses);
 
-  const filteredCourses = courses.filter(course =>
+  useEffect(() => {
+    execute();
+  }, []);
+
+  const filteredCourses = (courses || []).filter(course =>
     course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -48,13 +55,25 @@ const Practice: React.FC = () => {
         </div>
 
         {/* Course Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredCourses.map(course => (
-            <CourseCard key={course.id} course={course} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-48 rounded-xl" />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-destructive">{error}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredCourses.map(course => (
+              <CourseCard key={course.id} course={course} />
+            ))}
+          </div>
+        )}
 
-        {filteredCourses.length === 0 && (
+        {!loading && filteredCourses.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No courses found matching "{searchTerm}"</p>
           </div>

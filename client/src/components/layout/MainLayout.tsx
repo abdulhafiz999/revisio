@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -7,10 +7,14 @@ import {
   Lightbulb,
   GraduationCap,
   Menu,
-  X
+  X,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
+import { apiClient } from '@/services/api.client';
+import { useToast } from '@/hooks/use-toast';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -25,7 +29,26 @@ const navItems = [
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+  const { toast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await apiClient.logout();
+      logout();
+      toast({
+        title: 'Logged out',
+        description: 'You have been successfully logged out.',
+      });
+      navigate('/login');
+    } catch (error) {
+      // Even if API call fails, clear local auth
+      logout();
+      navigate('/login');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -62,8 +85,29 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t">
-          <div className="rounded-lg bg-muted p-4">
+        <div className="p-4 border-t space-y-3">
+          {/* User Info */}
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{user?.email}</p>
+            </div>
+          </div>
+          
+          {/* Logout Button */}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+          
+          {/* Reminder */}
+          <div className="rounded-lg bg-muted p-3">
             <p className="text-xs text-muted-foreground">
               🎯 Remember: This tool is for <strong>learning</strong>, not shortcuts. 
               Always attempt questions before viewing explanations!
@@ -118,6 +162,27 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   </Link>
                 );
               })}
+              
+              {/* Mobile Logout Button */}
+              <div className="pt-4 mt-4 border-t">
+                <div className="flex items-center gap-3 px-4 py-2 mb-3 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <p className="text-sm font-medium truncate">{user?.email}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
             </nav>
           </div>
         </div>
