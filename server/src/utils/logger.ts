@@ -80,9 +80,9 @@ class Logger {
   error(message: string, error?: Error | any): void {
     const meta = error instanceof Error
       ? {
-          message: error.message,
           stack: this.isDevelopment ? error.stack : undefined,
           ...error,
+          message: error.message,
         }
       : error;
     

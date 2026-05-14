@@ -38,7 +38,7 @@ export function createApp(): Application {
   app.use(rateLimiter);
 
   // Request logging in development
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     logger.info(`${req.method} ${req.path}`);
     next();
   });
@@ -47,7 +47,7 @@ export function createApp(): Application {
   // Health Check Endpoint
   // ============================================================================
 
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     res.status(200).json({
       success: true,
       data: {

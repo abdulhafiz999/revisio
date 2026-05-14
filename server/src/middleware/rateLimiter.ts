@@ -22,7 +22,7 @@ export const rateLimiter = rateLimit({
   },
   
   // Standardized error response format
-  handler: (req: Request, res: Response): void => {
+  handler: (_req: Request, res: Response): void => {
     res.status(429).json({
       success: false,
       error: 'Too many requests. Please try again later.',
@@ -53,7 +53,7 @@ export const authRateLimiter = rateLimit({
     return req.ip || 'unknown';
   },
   
-  handler: (req: Request, res: Response): void => {
+  handler: (_req: Request, res: Response): void => {
     res.status(429).json({
       success: false,
       error: 'Too many authentication attempts. Please try again later.',
@@ -81,7 +81,7 @@ export const aiRateLimiter = rateLimit({
     return `ai:${req.ip || 'unknown'}`;
   },
   
-  handler: (req: Request, res: Response): void => {
+  handler: (_req: Request, res: Response): void => {
     res.status(429).json({
       success: false,
       error: 'Too many AI requests. Please try again later.',

@@ -66,9 +66,9 @@ export class ExternalServiceError extends AppError {
  */
 export function errorHandler(
   error: Error | AppError,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void {
   // Default error values
   let statusCode = 500;
@@ -133,7 +133,7 @@ export function errorHandler(
 /**
  * Middleware to handle 404 errors for undefined routes
  */
-export function notFoundHandler(req: Request, res: Response, next: NextFunction): void {
+export function notFoundHandler(req: Request, _res: Response, next: NextFunction): void {
   const error = new NotFoundError(`Route ${req.method} ${req.path} not found`);
   next(error);
 }
