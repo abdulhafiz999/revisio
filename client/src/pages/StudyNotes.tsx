@@ -12,18 +12,28 @@ import {
   Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { apiClient, StudyNote } from '@/services/api.client';
+import { apiClient, StudyNote, GeneratedQuestion } from '@/services/api.client';
 import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const StudyNotes: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
+  const [showQuestionsDialog, setShowQuestionsDialog] = useState(false);
+  const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
   const { toast } = useToast();
   
   const { data: notes, loading, execute: fetchNotes } = useApi(apiClient.getNotes);
   const { loading: uploading, execute: uploadPDF } = useApi(apiClient.uploadPDF);
   const { execute: deleteNote } = useApi(apiClient.deleteNote);
+  const { loading: generating, execute: generateQuestions } = useApi(apiClient.generateQuestions);
 
   useEffect(() => {
     fetchNotes();
@@ -91,6 +101,20 @@ const StudyNotes: React.FC = () => {
         description: 'The note has been removed',
       });
       fetchNotes(); // Refresh the notes list
+    }
+  };
+
+  const handleAskAI = async (noteId: string) => {
+    const result = await generateQuestions(noteId, 5, 'medium');
+    if (result) {
+      setGeneratedQuestions(result);
+      setShowQuestionsDialog(true);
+    } else {
+      toast({
+        title: 'Failed to generate questions',
+        description: 'Could not generate questions from this note. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -231,7 +255,11 @@ const StudyNotes: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAskAI(note.id)}
+                    >
                       <Sparkles className="h-4 w-4 mr-2" />
                       Ask AI
                     </Button>
@@ -249,6 +277,47 @@ const StudyNotes: React.FC = () => {
           </div>
         ) : null}
       </div>
+
+      {/* AI Generated Questions Dialog */}
+      <Dialog open={showQuestionsDialog} onOpenChange={setShowQuestionsDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>AI Generated Questions</DialogTitle>
+            <DialogDescription>
+              Practice questions generated from your study notes
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 mt-4">
+            {generatedQuestions.map((q, index) => (
+              <div key={index} className="p-4 border rounded-lg space-y-3">
+                <h4 className="font-semibold">Question {index + 1}</h4>
+                <p className="text-sm">{q.question_text}</p>
+                <div className="space-y-2">
+                  {q.options.map((option, optIndex) => (
+                    <div
+                      key={optIndex}
+                      className={cn(
+                        "p-2 rounded border text-sm",
+                        option === q.correct_answer
+                          ? "bg-green-50 border-green-200"
+                          : "bg-gray-50"
+                      )}
+                    >
+                      {option}
+                      {option === q.correct_answer && (
+                        <span className="ml-2 text-green-600 font-semibold">✓ Correct</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded">
+                  <strong>Explanation:</strong> {q.explanation}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };
