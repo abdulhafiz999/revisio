@@ -18,7 +18,8 @@ interface ApiErrorResponse {
 
 interface AuthResponse {
   user: User;
-  session: Session;
+  session: Session | null;
+  emailConfirmationRequired?: boolean;
 }
 
 interface Session {

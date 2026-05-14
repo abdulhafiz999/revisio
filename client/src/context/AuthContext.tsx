@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/lib/supabaseClient';
 
 interface User {
   id: string;
@@ -23,22 +23,50 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing auth on mount
   useEffect(() => {
+    // Check localStorage first (email/password login)
     const token = localStorage.getItem(TOKEN_KEY);
     const storedUser = localStorage.getItem(USER_KEY);
 
     if (token && storedUser) {
       try {
         setUser(JSON.parse(storedUser));
-      } catch (error) {
-        // Invalid stored user, clear storage
+        setIsLoading(false);
+        return;
+      } catch {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
       }
     }
 
-    setIsLoading(false);
+    // Listen for Supabase OAuth session (Google sign-in callback)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const oauthUser = { id: session.user.id, email: session.user.email || '' };
+        localStorage.setItem(TOKEN_KEY, session.access_token);
+        localStorage.setItem(USER_KEY, JSON.stringify(oauthUser));
+        setUser(oauthUser);
+      }
+      setIsLoading(false);
+    });
+
+    // Subscribe to auth state changes (handles OAuth redirect)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const oauthUser = { id: session.user.id, email: session.user.email || '' };
+        localStorage.setItem(TOKEN_KEY, session.access_token);
+        localStorage.setItem(USER_KEY, JSON.stringify(oauthUser));
+        setUser(oauthUser);
+      } else if (!session) {
+        // Only clear if not already set via email/password
+        const existingToken = localStorage.getItem(TOKEN_KEY);
+        if (!existingToken) {
+          setUser(null);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = (user: User, token: string) => {
@@ -51,6 +79,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setUser(null);
+    supabase.auth.signOut();
   };
 
   return (

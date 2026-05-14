@@ -8,6 +8,7 @@ import { apiClient } from '@/services/api.client';
 import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabaseClient';
 
 const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -63,9 +64,21 @@ const Register: React.FC = () => {
     }
   };
 
-  const handleGoogleSignUp = () => {
-    // TODO: Implement Google OAuth
-    console.log('Google Sign Up');
+  const handleGoogleSignUp = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+      },
+    });
+
+    if (error) {
+      toast({
+        title: 'Google Sign Up failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
