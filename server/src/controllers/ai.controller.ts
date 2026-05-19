@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { generateQuestions } from '../services/ai.service';
 import { getNoteById } from '../services/notes.service';
+import { saveGeneratedQuestions } from '../services/questions.service';
 import { ApiSuccessResponse } from '../models/types';
 
 /**
@@ -33,8 +34,8 @@ export async function generateQuestionsHandler(
       return;
     }
 
-    // Generate questions
-    const questions = await generateQuestions(note.content, count, difficulty);
+    const generated = await generateQuestions(note.content, count, difficulty);
+    const questions = await saveGeneratedQuestions(difficulty, generated);
 
     const response: ApiSuccessResponse<typeof questions> = {
       success: true,

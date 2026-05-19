@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS attempt_history (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   question_id UUID NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
   attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  student_answer VARCHAR(10) NOT NULL,
+  student_answer TEXT NOT NULL,
   is_correct BOOLEAN NOT NULL,
   time_spent_seconds INTEGER
 );

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS questions (
   type VARCHAR(20) NOT NULL CHECK (type IN ('multiple-choice', 'true-false')),
   question_text TEXT NOT NULL,
   options JSONB NOT NULL,
-  correct_answer VARCHAR(10) NOT NULL,
+  correct_answer TEXT NOT NULL,
   explanation TEXT,
   common_mistakes TEXT[],
   hints TEXT[],

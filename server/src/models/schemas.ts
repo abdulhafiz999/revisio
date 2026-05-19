@@ -45,7 +45,7 @@ export const questionIdSchema = z.object({
 
 export const attemptSubmissionSchema = z.object({
   question_id: z.string().uuid('Invalid question ID'),
-  student_answer: z.string().min(1, 'Answer is required').max(10, 'Answer too long'),
+  student_answer: z.string().min(1, 'Answer is required').max(2000, 'Answer too long'),
   time_spent_seconds: z.number()
     .int('Time must be an integer')
     .nonnegative('Time cannot be negative')
@@ -91,7 +91,7 @@ export const generateQuestionsSchema = z.object({
   count: z.number()
     .int('Count must be an integer')
     .positive('Count must be positive')
-    .max(10, 'Cannot generate more than 10 questions at once'),
+    .max(25, 'Cannot generate more than 25 questions at once'),
   difficulty: z.enum(['easy', 'medium', 'hard']),
 });
 

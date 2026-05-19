@@ -3,11 +3,10 @@ import { env } from '../config/environment';
 import { logger } from '../utils/logger';
 import { GeneratedQuestion } from '../models/types';
 
-// Initialize Gemini with v1beta API
+// Initialize Gemini API
 const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-// Use gemini-1.5-flash (standard model name)
-const model = genAI.getGenerativeModel({ 
-  model: 'gemini-2.0-flash',
+const model = genAI.getGenerativeModel({
+  model: env.GEMINI_MODEL,
 });
 
 /**
@@ -29,8 +28,8 @@ Return ONLY a JSON array with this exact format:
 [
   {
     "question_text": "question here",
-    "options": ["A", "B", "C", "D"],
-    "correct_answer": "A",
+    "options": ["full text of option A", "full text of option B", "full text of option C", "full text of option D"],
+    "correct_answer": "full text of the correct option (must match one option exactly)",
     "explanation": "why this is correct"
   }
 ]`;

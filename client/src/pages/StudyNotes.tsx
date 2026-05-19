@@ -12,9 +12,12 @@ import {
   Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { apiClient, StudyNote, GeneratedQuestion } from '@/services/api.client';
+import { apiClient, Question } from '@/services/api.client';
 import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/use-toast';
+import { useStudy } from '@/context/StudyContext';
+import QuestionCard from '@/components/practice/QuestionCard';
+import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -27,8 +30,13 @@ import {
 const StudyNotes: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [showQuestionsDialog, setShowQuestionsDialog] = useState(false);
-  const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState<string>('');
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [questionCount, setQuestionCount] = useState<number>(10);
+  const [practiceQuestions, setPracticeQuestions] = useState<Question[]>([]);
   const { toast } = useToast();
+  const { hasAttempted, refreshProgress } = useStudy();
   
   const { data: notes, loading, execute: fetchNotes } = useApi(apiClient.getNotes);
   const { loading: uploading, execute: uploadPDF } = useApi(apiClient.uploadPDF);
@@ -83,7 +91,7 @@ const StudyNotes: React.FC = () => {
         title: 'Upload successful',
         description: `${file.name} has been uploaded and processed`,
       });
-      fetchNotes(); // Refresh the notes list
+      fetchNotes();
     } else {
       toast({
         title: 'Upload failed',
@@ -100,14 +108,20 @@ const StudyNotes: React.FC = () => {
         title: 'Note deleted',
         description: 'The note has been removed',
       });
-      fetchNotes(); // Refresh the notes list
+      fetchNotes();
     }
   };
 
   const handleAskAI = async (noteId: string) => {
-    const result = await generateQuestions(noteId, 5, 'medium');
+    setSelectedNoteId(noteId);
+    setShowSettingsDialog(true);
+  };
+
+  const handleGenerateQuestions = async () => {
+    setShowSettingsDialog(false);
+    const result = await generateQuestions(selectedNoteId, questionCount, difficulty);
     if (result) {
-      setGeneratedQuestions(result);
+      setPracticeQuestions(result);
       setShowQuestionsDialog(true);
     } else {
       toast({
@@ -118,10 +132,13 @@ const StudyNotes: React.FC = () => {
     }
   };
 
+  const allQuestionsAnswered =
+    practiceQuestions.length > 0 &&
+    practiceQuestions.every((q) => hasAttempted(q.id));
+
   return (
     <MainLayout>
       <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
-        {/* Header */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <FileText className="h-6 w-6 text-primary" />
@@ -132,7 +149,6 @@ const StudyNotes: React.FC = () => {
           </p>
         </div>
 
-        {/* Important Notice */}
         <div className="p-4 rounded-xl bg-warning/10 border border-warning/20 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
           <div>
@@ -144,7 +160,6 @@ const StudyNotes: React.FC = () => {
           </div>
         </div>
 
-        {/* Upload Area */}
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -191,7 +206,6 @@ const StudyNotes: React.FC = () => {
           </div>
         </div>
 
-        {/* AI Features */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-6 rounded-xl border bg-card hover:shadow-md transition-shadow">
             <div className="p-3 rounded-lg bg-primary/10 w-fit mb-4">
@@ -224,7 +238,6 @@ const StudyNotes: React.FC = () => {
           </div>
         </div>
 
-        {/* Uploaded Notes */}
         {loading ? (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Your Uploaded Notes</h2>
@@ -278,44 +291,122 @@ const StudyNotes: React.FC = () => {
         ) : null}
       </div>
 
-      {/* AI Generated Questions Dialog */}
-      <Dialog open={showQuestionsDialog} onOpenChange={setShowQuestionsDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>AI Generated Questions</DialogTitle>
+            <DialogTitle>Generate Practice Questions</DialogTitle>
             <DialogDescription>
-              Practice questions generated from your study notes
+              Choose the difficulty level and number of questions
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 mt-4">
-            {generatedQuestions.map((q, index) => (
-              <div key={index} className="p-4 border rounded-lg space-y-3">
-                <h4 className="font-semibold">Question {index + 1}</h4>
-                <p className="text-sm">{q.question_text}</p>
-                <div className="space-y-2">
-                  {q.options.map((option, optIndex) => (
-                    <div
-                      key={optIndex}
-                      className={cn(
-                        "p-2 rounded border text-sm",
-                        option === q.correct_answer
-                          ? "bg-green-50 border-green-200"
-                          : "bg-gray-50"
-                      )}
-                    >
-                      {option}
-                      {option === q.correct_answer && (
-                        <span className="ml-2 text-green-600 font-semibold">✓ Correct</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded">
-                  <strong>Explanation:</strong> {q.explanation}
-                </div>
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Difficulty Level</label>
+              <div className="grid grid-cols-3 gap-3">
+                <Button
+                  variant={difficulty === 'easy' ? 'default' : 'outline'}
+                  onClick={() => setDifficulty('easy')}
+                  className="w-full"
+                >
+                  Easy
+                </Button>
+                <Button
+                  variant={difficulty === 'medium' ? 'default' : 'outline'}
+                  onClick={() => setDifficulty('medium')}
+                  className="w-full"
+                >
+                  Medium
+                </Button>
+                <Button
+                  variant={difficulty === 'hard' ? 'default' : 'outline'}
+                  onClick={() => setDifficulty('hard')}
+                  className="w-full"
+                >
+                  Hard
+                </Button>
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Number of Questions</label>
+              <div className="grid grid-cols-3 gap-3">
+                <Button
+                  variant={questionCount === 10 ? 'default' : 'outline'}
+                  onClick={() => setQuestionCount(10)}
+                  className="w-full"
+                >
+                  10
+                </Button>
+                <Button
+                  variant={questionCount === 20 ? 'default' : 'outline'}
+                  onClick={() => setQuestionCount(20)}
+                  className="w-full"
+                >
+                  20
+                </Button>
+                <Button
+                  variant={questionCount === 25 ? 'default' : 'outline'}
+                  onClick={() => setQuestionCount(25)}
+                  className="w-full"
+                >
+                  25
+                </Button>
+              </div>
+            </div>
+
+            <Button 
+              onClick={handleGenerateQuestions} 
+              className="w-full"
+              disabled={generating}
+            >
+              {generating ? (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate Questions
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showQuestionsDialog}
+        onOpenChange={(open) => {
+          setShowQuestionsDialog(open);
+          if (!open) refreshProgress();
+        }}
+      >
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Practice Quiz</DialogTitle>
+            <DialogDescription>
+              {practiceQuestions.length} {difficulty} questions — select an answer and submit before viewing explanations.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 mt-4">
+            {practiceQuestions.map((question, index) => (
+              <QuestionCard key={question.id} question={question} index={index} />
             ))}
           </div>
+          {allQuestionsAnswered && (
+            <div className="mt-6 p-4 rounded-xl border bg-success/10 border-success/20 text-center space-y-3">
+              <p className="font-medium text-success">Quiz complete!</p>
+              <p className="text-sm text-muted-foreground">
+                Your dashboard stats have been updated.
+              </p>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/dashboard" onClick={() => setShowQuestionsDialog(false)}>
+                  View Dashboard
+                </Link>
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </MainLayout>

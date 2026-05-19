@@ -13,6 +13,7 @@ const envSchema = z.object({
   
   // AI service configuration
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required'),
+  GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
   OPENAI_API_KEY: z.string().optional().default(''),
   
   // Server configuration

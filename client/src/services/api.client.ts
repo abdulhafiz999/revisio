@@ -495,8 +495,8 @@ class ApiClient {
     noteId: string,
     count: number,
     difficulty: string
-  ): Promise<GeneratedQuestion[]> {
-    const response = await axiosInstance.post<ApiSuccessResponse<GeneratedQuestion[]>>(
+  ): Promise<Question[]> {
+    const response = await axiosInstance.post<ApiSuccessResponse<Question[]>>(
       '/api/ai/generate-questions',
       { note_id: noteId, count, difficulty }
     );
