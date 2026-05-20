@@ -30,6 +30,7 @@ import {
 const StudyNotes: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [showQuestionsDialog, setShowQuestionsDialog] = useState(false);
+  const [showGeneratingDialog, setShowGeneratingDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string>('');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
@@ -41,7 +42,7 @@ const StudyNotes: React.FC = () => {
   const { data: notes, loading, execute: fetchNotes } = useApi(apiClient.getNotes);
   const { loading: uploading, execute: uploadPDF } = useApi(apiClient.uploadPDF);
   const { execute: deleteNote } = useApi(apiClient.deleteNote);
-  const { loading: generating, execute: generateQuestions } = useApi(apiClient.generateQuestions);
+  const { loading: generating, error: generateError, execute: generateQuestions } = useApi(apiClient.generateQuestions);
 
   useEffect(() => {
     fetchNotes();
@@ -119,14 +120,16 @@ const StudyNotes: React.FC = () => {
 
   const handleGenerateQuestions = async () => {
     setShowSettingsDialog(false);
+    setShowGeneratingDialog(true);
     const result = await generateQuestions(selectedNoteId, questionCount, difficulty);
+    setShowGeneratingDialog(false);
     if (result) {
       setPracticeQuestions(result);
       setShowQuestionsDialog(true);
     } else {
       toast({
         title: 'Failed to generate questions',
-        description: 'Could not generate questions from this note. Please try again.',
+        description: generateError ?? 'Could not generate questions from this note. Please try again.',
         variant: 'destructive',
       });
     }
@@ -372,6 +375,23 @@ const StudyNotes: React.FC = () => {
               )}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showGeneratingDialog} onOpenChange={() => {}}>
+        <DialogContent className="max-w-sm" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary animate-spin" />
+              Generating your quiz
+            </DialogTitle>
+            <DialogDescription className="space-y-2 pt-2">
+              <p>AI is reading your notes and building {questionCount} questions.</p>
+              <p className="text-xs">
+                This usually takes 5–10 seconds. Larger notes or 20+ questions may take a bit longer.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
         </DialogContent>
       </Dialog>
 

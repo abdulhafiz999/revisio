@@ -59,6 +59,13 @@ export class ExternalServiceError extends AppError {
   }
 }
 
+export class RateLimitError extends AppError {
+  constructor(message: string = 'Too many requests. Please try again later.') {
+    super(429, message);
+    Object.setPrototypeOf(this, RateLimitError.prototype);
+  }
+}
+
 /**
  * Global error handling middleware
  * Handles different error types and returns standardized error responses

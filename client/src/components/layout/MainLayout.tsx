@@ -22,8 +22,8 @@ interface MainLayoutProps {
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/practice', label: 'Practice', icon: BookOpen },
   { path: '/notes', label: 'Study Notes', icon: FileText },
+  { path: '/practice', label: 'Practice', icon: BookOpen },
   { path: '/recommendations', label: 'AI Recommendations', icon: Lightbulb },
 ];
 
