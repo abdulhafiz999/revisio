@@ -1,5 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { generateQuestions } from '../services/ai.service';
+import { 
+  generateQuestions, 
+  summarizeNotes, 
+  explainConcept, 
+  generateFlashcards,
+  generateStudyGuide 
+} from '../services/ai.service';
 import { getNoteById } from '../services/notes.service';
 import { saveGeneratedQuestions } from '../services/questions.service';
 import { ApiSuccessResponse } from '../models/types';
@@ -40,6 +46,158 @@ export async function generateQuestionsHandler(
     const response: ApiSuccessResponse<typeof questions> = {
       success: true,
       data: questions,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Summarize a note
+ * POST /api/ai/summarize
+ */
+export async function summarizeHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const { note_id } = req.body;
+
+    const note = await getNoteById(userId, note_id);
+
+    if (!note.content || note.content.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'Note has no content',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const summary = await summarizeNotes(note.content);
+
+    const response: ApiSuccessResponse<{ summary: string }> = {
+      success: true,
+      data: { summary },
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Explain a concept from a note
+ * POST /api/ai/explain
+ */
+export async function explainHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const { note_id, concept } = req.body;
+
+    const note = await getNoteById(userId, note_id);
+
+    if (!note.content || note.content.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'Note has no content',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const explanation = await explainConcept(note.content, concept);
+
+    const response: ApiSuccessResponse<{ explanation: string }> = {
+      success: true,
+      data: { explanation },
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Generate flashcards from a note
+ * POST /api/ai/flashcards
+ */
+export async function flashcardsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const { note_id, count = 10 } = req.body;
+
+    const note = await getNoteById(userId, note_id);
+
+    if (!note.content || note.content.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'Note has no content',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const flashcards = await generateFlashcards(note.content, count);
+
+    const response: ApiSuccessResponse<typeof flashcards> = {
+      success: true,
+      data: flashcards,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Generate study guide from a note
+ * POST /api/ai/study-guide
+ */
+export async function studyGuideHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const { note_id } = req.body;
+
+    const note = await getNoteById(userId, note_id);
+
+    if (!note.content || note.content.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'Note has no content',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const guide = await generateStudyGuide(note.content);
+
+    const response: ApiSuccessResponse<{ guide: string }> = {
+      success: true,
+      data: { guide },
       timestamp: new Date().toISOString(),
     };
 

@@ -1,7 +1,64 @@
 import { supabaseAdmin } from '../config/database';
 import { logger } from '../utils/logger';
 import { GeneratedQuestion, Question } from '../models/types';
+import { QuestionFilters } from '../models/schemas';
 import { AI_PRACTICE_COURSE_ID, AI_PRACTICE_TOPIC_ID } from '../constants/ai-practice';
+
+function normalizeQuestion(row: Record<string, unknown>): Question {
+  const options = row.options;
+  return {
+    ...(row as unknown as Question),
+    options: Array.isArray(options) ? options : JSON.parse(String(options)),
+    common_mistakes: (row.common_mistakes as string[] | null) ?? [],
+    hints: (row.hints as string[] | null) ?? [],
+  };
+}
+
+export async function getQuestions(filters: QuestionFilters): Promise<Question[]> {
+  let query = supabaseAdmin
+    .from('questions')
+    .select('*')
+    .neq('course_id', AI_PRACTICE_COURSE_ID)
+    .order('created_at', { ascending: false })
+    .limit(filters.limit ?? 20);
+
+  if (filters.courseId) {
+    query = query.eq('course_id', filters.courseId);
+  }
+  if (filters.topicId) {
+    query = query.eq('topic_id', filters.topicId);
+  }
+  if (filters.difficulty) {
+    query = query.eq('difficulty', filters.difficulty);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('Error fetching questions:', error);
+    throw new Error(`Failed to fetch questions: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => normalizeQuestion(row));
+}
+
+export async function getQuestionById(questionId: string): Promise<Question | null> {
+  const { data, error } = await supabaseAdmin
+    .from('questions')
+    .select('*')
+    .eq('id', questionId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+    logger.error('Error fetching question:', error);
+    throw new Error(`Failed to fetch question: ${error.message}`);
+  }
+
+  return normalizeQuestion(data);
+}
 
 function normalizeCorrectAnswer(question: GeneratedQuestion): string {
   const answer = question.correct_answer.trim();

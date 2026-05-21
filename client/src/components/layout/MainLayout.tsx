@@ -55,12 +55,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 z-50 border-r bg-card">
         {/* Logo */}
-        <div className="flex h-16 items-center gap-2 px-6 border-b">
+        <Link to="/" className="flex h-16 items-center gap-2 px-6 border-b hover:bg-muted/50 transition-colors">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-primary">
             <GraduationCap className="h-6 w-6 text-primary-foreground" />
           </div>
           <span className="font-bold text-lg">REVISIO</span>
-        </div>
+        </Link>
 
         {/* Navigation */}
         <nav className="flex-1 py-6 px-4 space-y-1">
@@ -119,12 +119,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="flex h-full items-center justify-between px-4">
-          <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-primary">
               <GraduationCap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-bold">StudyAI</span>
-          </div>
+            <span className="font-bold">REVISIO</span>
+          </Link>
           <Button
             variant="ghost"
             size="icon"

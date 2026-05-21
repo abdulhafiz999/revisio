@@ -1,8 +1,14 @@
 import { Router } from 'express';
-import { generateQuestionsHandler } from '../controllers/ai.controller';
+import { 
+  generateQuestionsHandler,
+  summarizeHandler,
+  explainHandler,
+  flashcardsHandler,
+  studyGuideHandler
+} from '../controllers/ai.controller';
 import { verifyToken } from '../middleware/auth';
 import { validate } from '../middleware/validation';
-import { generateQuestionsSchema } from '../models/schemas';
+import { generateQuestionsSchema, aiNoteIdSchema, explainConceptSchema, flashcardsSchema } from '../models/schemas';
 
 const router = Router();
 
@@ -15,6 +21,50 @@ router.post(
   verifyToken,
   validate(generateQuestionsSchema),
   generateQuestionsHandler
+);
+
+/**
+ * POST /api/ai/summarize
+ * Summarize a note
+ */
+router.post(
+  '/summarize',
+  verifyToken,
+  validate(aiNoteIdSchema),
+  summarizeHandler
+);
+
+/**
+ * POST /api/ai/explain
+ * Explain a concept from a note
+ */
+router.post(
+  '/explain',
+  verifyToken,
+  validate(explainConceptSchema),
+  explainHandler
+);
+
+/**
+ * POST /api/ai/flashcards
+ * Generate flashcards from a note
+ */
+router.post(
+  '/flashcards',
+  verifyToken,
+  validate(flashcardsSchema),
+  flashcardsHandler
+);
+
+/**
+ * POST /api/ai/study-guide
+ * Generate a comprehensive study guide
+ */
+router.post(
+  '/study-guide',
+  verifyToken,
+  validate(aiNoteIdSchema),
+  studyGuideHandler
 );
 
 export default router;

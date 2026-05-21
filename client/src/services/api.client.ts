@@ -503,7 +503,39 @@ class ApiClient {
     return response.data.data;
   }
 
-  async explainConcept(concept: string): Promise<Explanation> {
+  async summarizeNote(noteId: string): Promise<string> {
+    const response = await axiosInstance.post<ApiSuccessResponse<{ summary: string }>>(
+      '/api/ai/summarize',
+      { note_id: noteId }
+    );
+    return response.data.data.summary;
+  }
+
+  async explainConcept(noteId: string, concept: string): Promise<string> {
+    const response = await axiosInstance.post<ApiSuccessResponse<{ explanation: string }>>(
+      '/api/ai/explain',
+      { note_id: noteId, concept }
+    );
+    return response.data.data.explanation;
+  }
+
+  async generateFlashcards(noteId: string, count: number = 10): Promise<Array<{ front: string; back: string }>> {
+    const response = await axiosInstance.post<ApiSuccessResponse<Array<{ front: string; back: string }>>>(
+      '/api/ai/flashcards',
+      { note_id: noteId, count }
+    );
+    return response.data.data;
+  }
+
+  async generateStudyGuide(noteId: string): Promise<string> {
+    const response = await axiosInstance.post<ApiSuccessResponse<{ guide: string }>>(
+      '/api/ai/study-guide',
+      { note_id: noteId }
+    );
+    return response.data.data.guide;
+  }
+
+  async explainConceptOld(concept: string): Promise<Explanation> {
     const response = await axiosInstance.post<ApiSuccessResponse<Explanation>>(
       '/api/ai/explain',
       { concept_text: concept }

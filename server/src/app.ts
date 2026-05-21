@@ -12,6 +12,9 @@ import attemptsRoutes from './routes/attempts.routes';
 import progressRoutes from './routes/progress.routes';
 import notesRoutes from './routes/notes.routes';
 import aiRoutes from './routes/ai.routes';
+import coursesRoutes from './routes/courses.routes';
+import topicsRoutes from './routes/topics.routes';
+import questionsRoutes from './routes/questions.routes';
 
 /**
  * Configure and initialize Express application
@@ -68,11 +71,9 @@ export function createApp(): Application {
   app.use('/api/users', progressRoutes); // Progress routes are under /api/users
   app.use('/api/notes', notesRoutes);
   app.use('/api/ai', aiRoutes);
-
-  // TODO: Add these routes when tasks 6 and 7 are completed
-  // app.use('/api/courses', coursesRoutes);
-  // app.use('/api/questions', questionsRoutes);
-  // app.use('/api/topics', topicsRoutes);
+  app.use('/api/courses', coursesRoutes);
+  app.use('/api/topics', topicsRoutes);
+  app.use('/api/questions', questionsRoutes);
 
   // ============================================================================
   // Error Handling

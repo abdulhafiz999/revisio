@@ -9,7 +9,10 @@ import {
   FileQuestion,
   Lightbulb,
   AlertCircle,
-  Trash2
+  Trash2,
+  MoreVertical,
+  FileType,
+  Brain
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient, Question } from '@/services/api.client';
@@ -26,12 +29,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 const StudyNotes: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [showQuestionsDialog, setShowQuestionsDialog] = useState(false);
   const [showGeneratingDialog, setShowGeneratingDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showAIResultDialog, setShowAIResultDialog] = useState(false);
+  const [aiResultTitle, setAIResultTitle] = useState('');
+  const [aiResultContent, setAIResultContent] = useState('');
+  const [showFlashcardsDialog, setShowFlashcardsDialog] = useState(false);
+  const [flashcards, setFlashcards] = useState<Array<{ front: string; back: string }>>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string>('');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [questionCount, setQuestionCount] = useState<number>(10);
@@ -43,6 +58,8 @@ const StudyNotes: React.FC = () => {
   const { loading: uploading, execute: uploadPDF } = useApi(apiClient.uploadPDF);
   const { execute: deleteNote } = useApi(apiClient.deleteNote);
   const { loading: generating, error: generateError, execute: generateQuestions } = useApi(apiClient.generateQuestions);
+  const { loading: aiLoading, error: summarizeError, execute: summarizeNote } = useApi(apiClient.summarizeNote);
+  const { error: flashcardsError, execute: generateFlashcards } = useApi(apiClient.generateFlashcards);
 
   useEffect(() => {
     fetchNotes();
@@ -116,6 +133,35 @@ const StudyNotes: React.FC = () => {
   const handleAskAI = async (noteId: string) => {
     setSelectedNoteId(noteId);
     setShowSettingsDialog(true);
+  };
+
+  const handleSummarize = async (noteId: string) => {
+    const result = await summarizeNote(noteId);
+    if (result) {
+      setAIResultTitle('Summary');
+      setAIResultContent(result);
+      setShowAIResultDialog(true);
+    } else {
+      toast({
+        title: 'Failed to summarize',
+        description: summarizeError ?? 'Could not generate summary. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleFlashcards = async (noteId: string) => {
+    const result = await generateFlashcards(noteId, 10);
+    if (result) {
+      setFlashcards(result);
+      setShowFlashcardsDialog(true);
+    } else {
+      toast({
+        title: 'Failed to generate flashcards',
+        description: flashcardsError ?? 'Could not generate flashcards. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleGenerateQuestions = async () => {
@@ -270,17 +316,31 @@ const StudyNotes: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          AI Tools
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={() => handleAskAI(note.id)}>
+                          <FileQuestion className="h-4 w-4 mr-2" />
+                          Generate Quiz
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSummarize(note.id)} disabled={aiLoading}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Summarize Notes
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleFlashcards(note.id)} disabled={aiLoading}>
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Create Flashcards
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleAskAI(note.id)}
-                    >
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Ask AI
-                    </Button>
-                    <Button 
-                      variant="outline" 
+                      variant="ghost" 
                       size="sm"
                       onClick={() => handleDelete(note.id)}
                     >
@@ -402,22 +462,37 @@ const StudyNotes: React.FC = () => {
           if (!open) refreshProgress();
         }}
       >
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden [&>button]:hidden">
+          <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4">
             <DialogTitle>Practice Quiz</DialogTitle>
-            <DialogDescription>
-              {practiceQuestions.length} {difficulty} questions — select an answer and submit before viewing explanations.
-            </DialogDescription>
+            <div className="flex items-center justify-between gap-3">
+              <DialogDescription className="text-left flex-1 min-w-0 m-0">
+                {practiceQuestions.length} {difficulty} questions — select an answer and submit before viewing explanations.
+              </DialogDescription>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  setShowQuestionsDialog(false);
+                  refreshProgress();
+                }}
+              >
+                Close
+              </Button>
+            </div>
           </DialogHeader>
-          <div className="space-y-6 mt-4">
-            {practiceQuestions.map((question, index) => (
-              <QuestionCard key={question.id} question={question} index={index} />
-            ))}
-          </div>
-          {allQuestionsAnswered && (
-            <div className="mt-6 p-4 rounded-xl border bg-success/10 border-success/20 text-center space-y-3">
-              <p className="font-medium text-success">Quiz complete!</p>
-              <p className="text-sm text-muted-foreground">
+          <div className="overflow-y-auto px-6 py-4">
+            <div className="space-y-6">
+              {practiceQuestions.map((question, index) => (
+                <QuestionCard key={question.id} question={question} index={index} />
+              ))}
+            </div>
+            {allQuestionsAnswered && (
+              <div className="mt-6 p-4 rounded-xl border bg-success/10 border-success/20 text-center space-y-3">
+                <p className="font-medium text-success">Quiz complete!</p>
+                <p className="text-sm text-muted-foreground">
                 Your dashboard stats have been updated.
               </p>
               <Button asChild variant="outline" size="sm">
@@ -426,7 +501,56 @@ const StudyNotes: React.FC = () => {
                 </Link>
               </Button>
             </div>
-          )}
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Result Dialog (Summary/Study Guide) */}
+      <Dialog open={showAIResultDialog} onOpenChange={setShowAIResultDialog}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4 pr-12">
+            <DialogTitle>{aiResultTitle}</DialogTitle>
+            <DialogDescription>
+              AI-generated content from your study notes
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto px-6 py-4">
+            <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+              {aiResultContent}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Flashcards Dialog */}
+      <Dialog open={showFlashcardsDialog} onOpenChange={setShowFlashcardsDialog}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4 pr-12">
+            <DialogTitle>Flashcards</DialogTitle>
+            <DialogDescription>
+              {flashcards.length} flashcards generated from your notes
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto px-6 py-4">
+            <div className="grid gap-4">
+              {flashcards.map((card, index) => (
+                <div key={index} className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                      {index + 1}
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">FRONT</span>
+                  </div>
+                  <p className="font-medium">{card.front}</p>
+                  <div className="pt-2 border-t">
+                    <span className="text-xs font-medium text-muted-foreground">BACK</span>
+                    <p className="text-sm text-muted-foreground mt-1">{card.back}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </MainLayout>
