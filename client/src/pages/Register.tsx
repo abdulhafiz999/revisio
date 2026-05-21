@@ -54,7 +54,7 @@ const Register: React.FC = () => {
           title: 'Registration successful',
           description: 'Welcome to Revisio!',
         });
-        navigate('/');
+        navigate('/dashboard');
       }
     } else if (error) {
       toast({
@@ -69,7 +69,7 @@ const Register: React.FC = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/dashboard`,
       },
     });
 

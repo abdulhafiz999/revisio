@@ -34,7 +34,7 @@
 //         title: 'Login successful',
 //         description: 'Welcome back to Revisio!',
 //       });
-//       navigate('/');
+//       navigate('/dashboard');
 //     } else if (error) {
 //       toast({
 //         title: 'Login failed',
@@ -292,7 +292,7 @@ const Login: React.FC = () => {
         title: 'Login successful',
         description: 'Welcome back to Revisio!',
       });
-      navigate('/');
+      navigate('/dashboard');
     } else if (error) {
       toast({
         title: 'Login failed',
@@ -306,7 +306,7 @@ const Login: React.FC = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/dashboard`,
       },
     });
 
