@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/services/api.client';
 import { useToast } from '@/hooks/use-toast';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -96,15 +97,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </div>
           </div>
           
-          {/* Logout Button */}
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button
+              variant="outline"
+              className="flex-1 justify-start gap-3"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
+          </div>
           
           {/* Reminder */}
           <div className="rounded-lg bg-muted p-3">
@@ -125,13 +128,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </div>
             <span className="font-bold">REVISIO</span>
           </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -163,8 +169,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 );
               })}
               
+              <div className="pt-4 mt-4 border-t flex items-center justify-between gap-2 px-4">
+                <span className="text-sm text-muted-foreground">Appearance</span>
+                <ThemeToggle />
+              </div>
+
               {/* Mobile Logout Button */}
-              <div className="pt-4 mt-4 border-t">
+              <div className="pt-2 border-t mx-4">
                 <div className="flex items-center gap-3 px-4 py-2 mb-3 rounded-lg bg-muted/50">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-semibold">
                     {user?.email?.charAt(0).toUpperCase() || 'U'}
