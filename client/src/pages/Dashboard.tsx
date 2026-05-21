@@ -20,7 +20,7 @@ import { apiClient, Course, WeakTopic, StrongTopic } from '@/services/api.client
 import { useApi } from '@/hooks/useApi';
 
 const Dashboard: React.FC = () => {
-  const { progress, history, loading: contextLoading } = useStudy();
+  const { progress, weeklyActivity, loading: contextLoading } = useStudy();
   const { data: courses, execute: fetchCourses } = useApi(apiClient.getCourses);
   const { data: weakTopics, execute: fetchWeakTopics } = useApi(apiClient.getWeakTopics);
   const { data: strongTopics, execute: fetchStrongTopics } = useApi(apiClient.getStrongTopics);
@@ -97,7 +97,7 @@ const Dashboard: React.FC = () => {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <ProgressChart data={history} />
+            <ProgressChart data={weeklyActivity} />
           </div>
           <TopicStrength 
             weakTopics={weakTopics || []}

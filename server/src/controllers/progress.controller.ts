@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { getUserProgress, getRecentActivity } from '../services/progress.service';
+import { getUserProgress, getRecentActivity, getWeeklyActivity } from '../services/progress.service';
 import { ApiSuccessResponse } from '../models/types';
 
 /**
@@ -23,6 +23,31 @@ export async function getUserProgressHandler(
     const response: ApiSuccessResponse<typeof progress> = {
       success: true,
       data: progress,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get last 7 days of daily activity
+ * GET /api/users/weekly-activity
+ */
+export async function getWeeklyActivityHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const activity = await getWeeklyActivity(userId);
+
+    const response: ApiSuccessResponse<typeof activity> = {
+      success: true,
+      data: activity,
       timestamp: new Date().toISOString(),
     };
 

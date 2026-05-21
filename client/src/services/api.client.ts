@@ -86,6 +86,13 @@ interface AttemptResult {
   explanation: string;
 }
 
+export interface WeeklyActivityDay {
+  date: string;
+  label: string;
+  attempted: number;
+  correct: number;
+}
+
 interface UserProgress {
   user_id: string;
   total_attempted: number;
@@ -440,6 +447,13 @@ class ApiClient {
     return response.data.data;
   }
 
+  async getWeeklyActivity(): Promise<WeeklyActivityDay[]> {
+    const response = await axiosInstance.get<ApiSuccessResponse<WeeklyActivityDay[]>>(
+      '/api/users/weekly-activity'
+    );
+    return response.data.data;
+  }
+
   // ==========================================================================
   // Study Notes Methods
   // ==========================================================================
@@ -562,6 +576,7 @@ export type {
   WeakTopic,
   StrongTopic,
   Attempt,
+  WeeklyActivityDay,
   StudyNote,
   NoteInput,
   GeneratedQuestion,

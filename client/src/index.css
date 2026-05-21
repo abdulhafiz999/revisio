@@ -216,4 +216,19 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.8; }
   }
+
+  .contrib-cell-enter {
+    animation: contribPop 0.45s ease-out backwards;
+  }
+
+  @keyframes contribPop {
+    from {
+      opacity: 0;
+      transform: scale(0.55);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 }

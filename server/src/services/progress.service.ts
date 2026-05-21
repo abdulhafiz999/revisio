@@ -152,6 +152,75 @@ export async function getUserProgress(userId: string) {
   }
 }
 
+export interface WeeklyActivityDay {
+  date: string;
+  label: string;
+  attempted: number;
+  correct: number;
+}
+
+function toLocalDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getLast7DayKeys(): string[] {
+  const keys: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    keys.push(toLocalDateKey(d));
+  }
+  return keys;
+}
+
+/**
+ * Daily activity for the last 7 days (always 7 entries, zeros for quiet days)
+ */
+export async function getWeeklyActivity(userId: string): Promise<WeeklyActivityDay[]> {
+  const dayKeys = getLast7DayKeys();
+  const rangeStart = new Date();
+  rangeStart.setDate(rangeStart.getDate() - 6);
+  rangeStart.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabaseAdmin
+    .from('attempt_history')
+    .select('attempted_at, is_correct')
+    .eq('user_id', userId)
+    .gte('attempted_at', rangeStart.toISOString());
+
+  if (error) {
+    logger.error('Error fetching weekly activity:', error);
+    throw error;
+  }
+
+  const buckets = new Map(
+    dayKeys.map((date) => [date, { attempted: 0, correct: 0 }])
+  );
+
+  for (const row of data ?? []) {
+    const key = toLocalDateKey(new Date(row.attempted_at));
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+    bucket.attempted++;
+    if (row.is_correct) bucket.correct++;
+  }
+
+  return dayKeys.map((date) => {
+    const bucket = buckets.get(date)!;
+    const labelDate = new Date(`${date}T12:00:00`);
+    return {
+      date,
+      label: labelDate.toLocaleDateString('en-US', { weekday: 'short' }),
+      attempted: bucket.attempted,
+      correct: bucket.correct,
+    };
+  });
+}
+
 /**
  * Get recent activity
  */

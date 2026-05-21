@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { apiClient, UserProgress, Attempt } from '@/services/api.client';
+import { apiClient, UserProgress, Attempt, WeeklyActivityDay } from '@/services/api.client';
 import { useAuth } from '@/context/AuthContext';
 
 interface StudyContextType {
   progress: UserProgress | null;
   history: Attempt[];
+  weeklyActivity: WeeklyActivityDay[];
   recordAttempt: (questionId: string, studentAnswer: string, timeSpent: number) => Promise<boolean>;
   getQuestionAttempt: (questionId: string) => Attempt | undefined;
   hasAttempted: (questionId: string) => boolean;
@@ -17,6 +18,7 @@ const StudyContext = createContext<StudyContextType | undefined>(undefined);
 export const StudyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [progress, setProgress] = useState<UserProgress | null>(null);
   const [history, setHistory] = useState<Attempt[]>([]);
+  const [weeklyActivity, setWeeklyActivity] = useState<WeeklyActivityDay[]>([]);
   const [loading, setLoading] = useState(false);
   const { isAuthenticated } = useAuth();
 
@@ -25,18 +27,21 @@ export const StudyProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!isAuthenticated) {
       setProgress(null);
       setHistory([]);
+      setWeeklyActivity([]);
       return;
     }
 
     const loadData = async () => {
       try {
         setLoading(true);
-        const [progressData, recentActivity] = await Promise.all([
+        const [progressData, recentActivity, weekly] = await Promise.all([
           apiClient.getProgress(),
-          apiClient.getRecentActivity()
+          apiClient.getRecentActivity(),
+          apiClient.getWeeklyActivity(),
         ]);
         setProgress(progressData);
         setHistory(recentActivity);
+        setWeeklyActivity(weekly);
       } catch (error) {
         console.error('Failed to load progress data:', error);
       } finally {
@@ -49,12 +54,14 @@ export const StudyProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const refreshProgress = async () => {
     try {
-      const [progressData, recentActivity] = await Promise.all([
+      const [progressData, recentActivity, weekly] = await Promise.all([
         apiClient.getProgress(),
-        apiClient.getRecentActivity()
+        apiClient.getRecentActivity(),
+        apiClient.getWeeklyActivity(),
       ]);
       setProgress(progressData);
       setHistory(recentActivity);
+      setWeeklyActivity(weekly);
     } catch (error) {
       console.error('Failed to refresh progress data:', error);
     }
@@ -94,6 +101,7 @@ export const StudyProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     <StudyContext.Provider value={{
       progress,
       history,
+      weeklyActivity,
       recordAttempt,
       getQuestionAttempt,
       hasAttempted,
