@@ -3,8 +3,61 @@ import { logger } from '../utils/logger';
 
 /**
  * Simple Progress Tracker Service
- * Just tracks basic stats: attempts, correct/wrong answers
+ * Tracks attempts, correct/wrong answers, and daily study streak
  */
+
+function todayDateString(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function normalizeActivityDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value.split('T')[0];
+}
+
+/** Days from earlierDate to laterDate (laterDate must be same or after earlierDate). */
+function daysBetween(earlierDate: string, laterDate: string): number {
+  const start = Date.parse(`${earlierDate}T00:00:00Z`);
+  const end = Date.parse(`${laterDate}T00:00:00Z`);
+  return Math.round((end - start) / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Streak rules (first answer of the day):
+ * - No prior activity → day 1
+ * - Last activity was yesterday → increment
+ * - Last activity was today → unchanged
+ * - Gap of 2+ days → reset to day 1
+ */
+export function calculateNextStreak(
+  currentStreak: number,
+  lastActivityDate: string | null | undefined
+): { streak_days: number; last_activity_date: string } {
+  const today = todayDateString();
+  const lastActivity = normalizeActivityDate(lastActivityDate);
+
+  if (!lastActivity) {
+    return { streak_days: 1, last_activity_date: today };
+  }
+
+  if (lastActivity === today) {
+    return {
+      streak_days: Math.max(currentStreak, 1),
+      last_activity_date: today,
+    };
+  }
+
+  const gap = daysBetween(lastActivity, today);
+
+  if (gap === 1) {
+    return {
+      streak_days: Math.max(currentStreak, 0) + 1,
+      last_activity_date: today,
+    };
+  }
+
+  return { streak_days: 1, last_activity_date: today };
+}
 
 /**
  * Update user progress after an answer submission
@@ -17,8 +70,9 @@ export async function updateProgress(userId: string, isCorrect: boolean): Promis
       .eq('user_id', userId)
       .single();
 
+    const today = todayDateString();
+
     if (!existing) {
-      // Create new progress record
       await supabaseAdmin
         .from('user_progress')
         .insert({
@@ -27,16 +81,22 @@ export async function updateProgress(userId: string, isCorrect: boolean): Promis
           correct_answers: isCorrect ? 1 : 0,
           wrong_answers: isCorrect ? 0 : 1,
           streak_days: 1,
-          last_activity_date: new Date().toISOString().split('T')[0],
+          last_activity_date: today,
         });
     } else {
-      // Update existing progress
+      const { streak_days, last_activity_date } = calculateNextStreak(
+        existing.streak_days ?? 0,
+        existing.last_activity_date
+      );
+
       await supabaseAdmin
         .from('user_progress')
         .update({
           total_attempted: existing.total_attempted + 1,
           correct_answers: isCorrect ? existing.correct_answers + 1 : existing.correct_answers,
           wrong_answers: isCorrect ? existing.wrong_answers : existing.wrong_answers + 1,
+          streak_days,
+          last_activity_date,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', userId);

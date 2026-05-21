@@ -106,16 +106,6 @@ export const explainConceptSchema = z.object({
     .max(200, 'Concept must not exceed 200 characters'),
 });
 
-export const flashcardsSchema = z.object({
-  note_id: z.string().uuid('Invalid note ID'),
-  count: z.number()
-    .int('Count must be an integer')
-    .positive('Count must be positive')
-    .max(20, 'Cannot generate more than 20 flashcards at once')
-    .optional()
-    .default(10),
-});
-
 // ============================================================================
 // Course and Topic Schemas
 // ============================================================================

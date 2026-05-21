@@ -3,7 +3,6 @@ import {
   generateQuestions, 
   summarizeNotes, 
   explainConcept, 
-  generateFlashcards,
   generateStudyGuide 
 } from '../services/ai.service';
 import { getNoteById } from '../services/notes.service';
@@ -122,44 +121,6 @@ export async function explainHandler(
     const response: ApiSuccessResponse<{ explanation: string }> = {
       success: true,
       data: { explanation },
-      timestamp: new Date().toISOString(),
-    };
-
-    res.status(200).json(response);
-  } catch (error) {
-    next(error);
-  }
-}
-
-/**
- * Generate flashcards from a note
- * POST /api/ai/flashcards
- */
-export async function flashcardsHandler(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
-    const userId = (req as any).user.id;
-    const { note_id, count = 10 } = req.body;
-
-    const note = await getNoteById(userId, note_id);
-
-    if (!note.content || note.content.trim().length === 0) {
-      res.status(400).json({
-        success: false,
-        error: 'Note has no content',
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
-
-    const flashcards = await generateFlashcards(note.content, count);
-
-    const response: ApiSuccessResponse<typeof flashcards> = {
-      success: true,
-      data: flashcards,
       timestamp: new Date().toISOString(),
     };
 

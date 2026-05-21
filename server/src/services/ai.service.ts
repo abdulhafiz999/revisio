@@ -293,50 +293,6 @@ Keep the explanation concise and easy to understand.`;
 }
 
 /**
- * Generate flashcards from notes
- */
-export async function generateFlashcards(content: string, count: number): Promise<Array<{front: string, back: string}>> {
-  try {
-    logger.info(`Generating ${count} flashcards`);
-
-    const prompt = `Create ${count} flashcards from this study material. Each flashcard should have:
-- front: A question or term
-- back: The answer or definition (keep it concise)
-
-Study material:
-${truncateContent(content, env.GEMINI_CONTENT_MAX_CHARS)}
-
-Return a JSON array:
-[{"front":"...","back":"..."}]`;
-
-    const text = await generateGeminiText(
-      prompt,
-      {
-        responseMimeType: 'application/json',
-        temperature: 0.5,
-        maxOutputTokens: count * 200 + 256,
-      },
-      'generate flashcards'
-    );
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    const flashcards = JSON.parse(jsonMatch ? jsonMatch[0] : text);
-
-    logger.info(`Generated ${flashcards.length} flashcards`);
-    return flashcards;
-  } catch (error: unknown) {
-    const err = error as Error;
-    logger.error('Error generating flashcards:', err);
-    if (error instanceof RateLimitError || error instanceof ExternalServiceError) {
-      throw error;
-    }
-    if (isQuotaError(err.message)) {
-      throw new RateLimitError(quotaRetryMessage(err.message));
-    }
-    throw new Error(`Failed to generate flashcards: ${err.message}`);
-  }
-}
-
-/**
  * Generate a comprehensive study guide
  */
 export async function generateStudyGuide(content: string): Promise<string> {

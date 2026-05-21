@@ -45,8 +45,6 @@ const StudyNotes: React.FC = () => {
   const [showAIResultDialog, setShowAIResultDialog] = useState(false);
   const [aiResultTitle, setAIResultTitle] = useState('');
   const [aiResultContent, setAIResultContent] = useState('');
-  const [showFlashcardsDialog, setShowFlashcardsDialog] = useState(false);
-  const [flashcards, setFlashcards] = useState<Array<{ front: string; back: string }>>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string>('');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [questionCount, setQuestionCount] = useState<number>(10);
@@ -59,7 +57,6 @@ const StudyNotes: React.FC = () => {
   const { execute: deleteNote } = useApi(apiClient.deleteNote);
   const { loading: generating, error: generateError, execute: generateQuestions } = useApi(apiClient.generateQuestions);
   const { loading: aiLoading, error: summarizeError, execute: summarizeNote } = useApi(apiClient.summarizeNote);
-  const { error: flashcardsError, execute: generateFlashcards } = useApi(apiClient.generateFlashcards);
 
   useEffect(() => {
     fetchNotes();
@@ -145,20 +142,6 @@ const StudyNotes: React.FC = () => {
       toast({
         title: 'Failed to summarize',
         description: summarizeError ?? 'Could not generate summary. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleFlashcards = async (noteId: string) => {
-    const result = await generateFlashcards(noteId, 10);
-    if (result) {
-      setFlashcards(result);
-      setShowFlashcardsDialog(true);
-    } else {
-      toast({
-        title: 'Failed to generate flashcards',
-        description: flashcardsError ?? 'Could not generate flashcards. Please try again.',
         variant: 'destructive',
       });
     }
@@ -332,10 +315,6 @@ const StudyNotes: React.FC = () => {
                         <DropdownMenuItem onClick={() => handleSummarize(note.id)} disabled={aiLoading}>
                           <FileText className="h-4 w-4 mr-2" />
                           Summarize Notes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleFlashcards(note.id)} disabled={aiLoading}>
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          Create Flashcards
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -523,36 +502,6 @@ const StudyNotes: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Flashcards Dialog */}
-      <Dialog open={showFlashcardsDialog} onOpenChange={setShowFlashcardsDialog}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4 pr-12">
-            <DialogTitle>Flashcards</DialogTitle>
-            <DialogDescription>
-              {flashcards.length} flashcards generated from your notes
-            </DialogDescription>
-          </DialogHeader>
-          <div className="overflow-y-auto px-6 py-4">
-            <div className="grid gap-4">
-              {flashcards.map((card, index) => (
-                <div key={index} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm">
-                      {index + 1}
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground">FRONT</span>
-                  </div>
-                  <p className="font-medium">{card.front}</p>
-                  <div className="pt-2 border-t">
-                    <span className="text-xs font-medium text-muted-foreground">BACK</span>
-                    <p className="text-sm text-muted-foreground mt-1">{card.back}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </MainLayout>
   );
 };

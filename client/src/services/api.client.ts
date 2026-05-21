@@ -519,14 +519,6 @@ class ApiClient {
     return response.data.data.explanation;
   }
 
-  async generateFlashcards(noteId: string, count: number = 10): Promise<Array<{ front: string; back: string }>> {
-    const response = await axiosInstance.post<ApiSuccessResponse<Array<{ front: string; back: string }>>>(
-      '/api/ai/flashcards',
-      { note_id: noteId, count }
-    );
-    return response.data.data;
-  }
-
   async generateStudyGuide(noteId: string): Promise<string> {
     const response = await axiosInstance.post<ApiSuccessResponse<{ guide: string }>>(
       '/api/ai/study-guide',
