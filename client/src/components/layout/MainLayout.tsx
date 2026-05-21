@@ -16,6 +16,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/services/api.client';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useTheme } from 'next-themes';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -33,7 +34,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+  const logoSrc = resolvedTheme === 'dark' ? '/iconwhite.png' : '/iconblack.png';
 
   const handleLogout = async () => {
     try {
@@ -57,9 +61,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 z-50 border-r bg-card">
         {/* Logo */}
         <Link to="/dashboard" className="flex h-16 items-center gap-2 px-6 border-b hover:bg-muted/50 transition-colors">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-primary">
-            <GraduationCap className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <img src={logoSrc} alt="REVISIO" className="h-10 w-10" />
           <span className="font-bold text-lg">REVISIO</span>
         </Link>
 
@@ -123,9 +125,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="flex h-full items-center justify-between px-4">
           <Link to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-primary">
-              <GraduationCap className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <img src={logoSrc} alt="REVISIO" className="h-9 w-9" />
             <span className="font-bold">REVISIO</span>
           </Link>
           <div className="flex items-center gap-1">
