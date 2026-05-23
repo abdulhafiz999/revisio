@@ -178,14 +178,19 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
           >
             {submitting ? 'Submitting...' : 'Submit Answer'}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowHints(!showHints)}
-            className="text-muted-foreground"
-          >
-            <Lightbulb className="h-4 w-4 mr-2" />
-            Need a hint?
-          </Button>
+          {question.hints && question.hints.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => setShowHints(!showHints)}
+              className={cn(
+                "text-muted-foreground transition-all duration-200",
+                showHints && "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 hover:text-warning"
+              )}
+            >
+              <Lightbulb className="h-4 w-4 mr-2" />
+              {showHints ? 'Hide Hint' : 'Need a hint?'}
+            </Button>
+          )}
         </div>
       )}
 
