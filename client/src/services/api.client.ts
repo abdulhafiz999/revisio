@@ -141,6 +141,17 @@ interface StudyNote {
   updated_at: string;
 }
 
+export interface SharedResource {
+  id: string;
+  course_id: string;
+  topic_id: string | null;
+  user_id: string;
+  title: string;
+  url: string;
+  resource_type: string;
+  created_at: string;
+}
+
 interface NoteInput {
   title: string;
   content: string;
@@ -485,6 +496,41 @@ class ApiClient {
     await axiosInstance.delete<ApiSuccessResponse<null>>(`/api/notes/${noteId}`);
   }
 
+  async getSharedNote(noteId: string): Promise<StudyNote> {
+    const response = await axiosInstance.get<ApiSuccessResponse<StudyNote>>(
+      `/api/notes/shared/${noteId}`
+    );
+    return response.data.data;
+  }
+
+  // ==========================================================================
+  // Shared Link / Resources Methods
+  // ==========================================================================
+
+  async getSharedResources(courseId: string): Promise<SharedResource[]> {
+    const response = await axiosInstance.get<ApiSuccessResponse<SharedResource[]>>(
+      `/api/resources/course/${courseId}`
+    );
+    return response.data.data;
+  }
+
+  async addSharedResource(
+    courseId: string,
+    title: string,
+    url: string,
+    topicId?: string
+  ): Promise<SharedResource> {
+    const response = await axiosInstance.post<ApiSuccessResponse<SharedResource>>(
+      '/api/resources',
+      { course_id: courseId, title, url, topic_id: topicId }
+    );
+    return response.data.data;
+  }
+
+  async deleteSharedResource(resourceId: string): Promise<void> {
+    await axiosInstance.delete<ApiSuccessResponse<null>>(`/api/resources/${resourceId}`);
+  }
+
   async uploadPDF(file: File): Promise<StudyNote> {
     const formData = new FormData();
     formData.append('file', file);
@@ -578,6 +624,7 @@ export type {
   Attempt,
   WeeklyActivityDay,
   StudyNote,
+  SharedResource,
   NoteInput,
   GeneratedQuestion,
   Explanation,

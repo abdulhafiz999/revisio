@@ -13,7 +13,8 @@ import { StudyNote } from '../models/types';
 export async function createNote(
   userId: string,
   title: string,
-  content: string
+  content: string,
+  fileUrl?: string
 ): Promise<StudyNote> {
   try {
     const { data, error } = await supabaseAdmin
@@ -22,6 +23,7 @@ export async function createNote(
         user_id: userId,
         title,
         content,
+        file_url: fileUrl,
       })
       .select()
       .single();
@@ -145,3 +147,26 @@ export async function deleteNote(
     throw error;
   }
 }
+
+/**
+ * Get a single public note by ID (bypasses RLS / userId check for public sharing)
+ */
+export async function getPublicNoteById(noteId: string): Promise<StudyNote> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('study_notes')
+      .select('*')
+      .eq('id', noteId)
+      .single();
+
+    if (error || !data) {
+      throw new Error('Note not found');
+    }
+
+    return data;
+  } catch (error) {
+    logger.error('Error getting public note:', error);
+    throw error;
+  }
+}
+

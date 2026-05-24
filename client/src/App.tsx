@@ -16,6 +16,7 @@ import Practice from "./pages/Practice";
 import CourseQuestions from "./pages/CourseQuestions";
 import StudyNotes from "./pages/StudyNotes";
 import Recommendations from "./pages/Recommendations";
+import SharedNoteView from "./pages/SharedNoteView";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/shared/note/:noteId" element={<SharedNoteView />} />
               
               {/* Protected routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

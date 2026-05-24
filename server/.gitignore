@@ -10,6 +10,10 @@ pnpm-lock.yaml
 .env.development
 .env.production
 
+#IDE
+.kiro
+
+
 # Build output
 dist/
 build/

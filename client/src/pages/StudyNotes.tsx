@@ -1,18 +1,21 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { 
-  FileText, 
-  Upload, 
-  BookOpen, 
-  Sparkles, 
+import {
+  FileText,
+  Upload,
+  BookOpen,
+  Sparkles,
   FileQuestion,
   Lightbulb,
   AlertCircle,
   Trash2,
   MoreVertical,
   FileType,
-  Brain
+  Brain,
+  Share2,
+  ExternalLink,
+  Link2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient, Question } from '@/services/api.client';
@@ -49,9 +52,25 @@ const StudyNotes: React.FC = () => {
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [practiceQuestions, setPracticeQuestions] = useState<Question[]>([]);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
   const { toast } = useToast();
   const { hasAttempted, refreshProgress } = useStudy();
-  
+
+  const handleShare = (noteId: string) => {
+    const url = `${window.location.origin}/shared/note/${noteId}`;
+    setShareUrl(url);
+    setShowShareDialog(true);
+  };
+
+  const copyShareLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    toast({
+      title: 'Link copied',
+      description: 'Sharing link copied to your clipboard!',
+    });
+  };
+
   const { data: notes, loading, execute: fetchNotes } = useApi(apiClient.getNotes);
   const { loading: uploading, execute: uploadPDF } = useApi(apiClient.uploadPDF);
   const { execute: deleteNote } = useApi(apiClient.deleteNote);
@@ -75,7 +94,7 @@ const StudyNotes: React.FC = () => {
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     for (const file of files) {
       if (file.type === 'application/pdf') {
@@ -186,7 +205,7 @@ const StudyNotes: React.FC = () => {
           <div>
             <p className="font-medium text-warning">Learning-Focused AI</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Our AI is designed to help you <strong>understand</strong> your study materials, not to provide exam answers. 
+              Our AI is designed to help you <strong>understand</strong> your study materials, not to provide exam answers.
               It will summarize content, explain difficult concepts, and generate practice questions to test your understanding.
             </p>
           </div>
@@ -198,8 +217,8 @@ const StudyNotes: React.FC = () => {
           onDrop={handleDrop}
           className={cn(
             "border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200",
-            isDragging 
-              ? "border-primary bg-primary/5" 
+            isDragging
+              ? "border-primary bg-primary/5"
               : "border-border hover:border-primary/50 hover:bg-muted/50"
           )}
         >
@@ -248,7 +267,7 @@ const StudyNotes: React.FC = () => {
               Get concise summaries of your study materials to quickly review key concepts.
             </p>
           </div>
-          
+
           <div className="p-6 rounded-xl border bg-card hover:shadow-md transition-shadow">
             <div className="p-3 rounded-lg bg-accent/20 w-fit mb-4">
               <Lightbulb className="h-6 w-6 text-accent-foreground" />
@@ -258,7 +277,7 @@ const StudyNotes: React.FC = () => {
               Ask AI to break down complex topics into simple, understandable explanations.
             </p>
           </div>
-          
+
           <div className="p-6 rounded-xl border bg-card hover:shadow-md transition-shadow">
             <div className="p-3 rounded-lg bg-success/10 w-fit mb-4">
               <FileQuestion className="h-6 w-6 text-success" />
@@ -284,7 +303,7 @@ const StudyNotes: React.FC = () => {
             <h2 className="text-lg font-semibold">Your Uploaded Notes</h2>
             <div className="space-y-3">
               {notes.map(note => (
-                <div 
+                <div
                   key={note.id}
                   className="flex items-center justify-between p-4 rounded-xl border bg-card hover:shadow-sm transition-shadow"
                 >
@@ -300,6 +319,26 @@ const StudyNotes: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {note.file_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(note.file_url, '_blank')}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        View PDF
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleShare(note.id)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Share
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm">
@@ -318,8 +357,8 @@ const StudyNotes: React.FC = () => {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(note.id)}
                     >
@@ -396,8 +435,8 @@ const StudyNotes: React.FC = () => {
               </div>
             </div>
 
-            <Button 
-              onClick={handleGenerateQuestions} 
+            <Button
+              onClick={handleGenerateQuestions}
               className="w-full"
               disabled={generating}
             >
@@ -417,7 +456,7 @@ const StudyNotes: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showGeneratingDialog} onOpenChange={() => {}}>
+      <Dialog open={showGeneratingDialog} onOpenChange={() => { }}>
         <DialogContent className="max-w-sm" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -472,14 +511,14 @@ const StudyNotes: React.FC = () => {
               <div className="mt-6 p-4 rounded-xl border bg-success/10 border-success/20 text-center space-y-3">
                 <p className="font-medium text-success">Quiz complete!</p>
                 <p className="text-sm text-muted-foreground">
-                Your dashboard stats have been updated.
-              </p>
-              <Button asChild variant="outline" size="sm">
-                <Link to="/dashboard" onClick={() => setShowQuestionsDialog(false)}>
-                  View Dashboard
-                </Link>
-              </Button>
-            </div>
+                  Your dashboard stats have been updated.
+                </p>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/dashboard" onClick={() => setShowQuestionsDialog(false)}>
+                    View Dashboard
+                  </Link>
+                </Button>
+              </div>
             )}
           </div>
         </DialogContent>
@@ -497,6 +536,32 @@ const StudyNotes: React.FC = () => {
           <div className="overflow-y-auto px-6 py-4">
             <div className="prose prose-sm max-w-none whitespace-pre-wrap">
               {aiResultContent}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share Note Dialog */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="max-w-md w-full animate-scale-in overflow-hidden">  {/* add overflow-hidden here */}
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="h-5 w-5 text-primary animate-pulse" />
+              Share Study Note
+            </DialogTitle>
+            <DialogDescription>
+              Share this link with your classmates. Anyone with this link can view your note summaries, open the PDF, and practice custom AI quizzes!
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="grid grid-cols-[1fr_auto] items-center gap-2 p-3 rounded-lg bg-muted border">  {/* swap flex for grid */}
+              <span className="text-xs text-muted-foreground truncate overflow-hidden select-all px-2 font-mono">
+                {shareUrl}
+              </span>
+              <Button size="sm" onClick={copyShareLink} className="whitespace-nowrap bg-primary text-primary-foreground hover:opacity-90">
+                <Link2 className="h-4 w-4 mr-2" />
+                Copy Link
+              </Button>
             </div>
           </div>
         </DialogContent>

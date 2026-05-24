@@ -7,6 +7,7 @@ import {
   getNoteByIdHandler,
   updateNoteHandler,
   deleteNoteHandler,
+  getSharedNoteHandler,
 } from '../controllers/notes.controller';
 import { verifyToken } from '../middleware/auth';
 import { validate } from '../middleware/validation';
@@ -21,6 +22,12 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB max
   },
 });
+
+/**
+ * GET /api/notes/shared/:noteId
+ * Get a public shared note (no authentication needed)
+ */
+router.get('/shared/:noteId', getSharedNoteHandler);
 
 /**
  * POST /api/notes/upload

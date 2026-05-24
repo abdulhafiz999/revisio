@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes';
 import attemptsRoutes from './routes/attempts.routes';
 import progressRoutes from './routes/progress.routes';
 import notesRoutes from './routes/notes.routes';
+import resourcesRoutes from './routes/resources.routes';
 import aiRoutes from './routes/ai.routes';
 import coursesRoutes from './routes/courses.routes';
 import topicsRoutes from './routes/topics.routes';
@@ -70,6 +71,7 @@ export function createApp(): Application {
   app.use('/api/attempts', attemptsRoutes);
   app.use('/api/users', progressRoutes); // Progress routes are under /api/users
   app.use('/api/notes', notesRoutes);
+  app.use('/api/resources', resourcesRoutes);
   app.use('/api/ai', aiRoutes);
   app.use('/api/courses', coursesRoutes);
   app.use('/api/topics', topicsRoutes);
