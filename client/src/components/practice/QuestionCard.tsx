@@ -268,6 +268,35 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
                   }
                 </p>
               </div>
+
+              {/* Ask Revi Button */}
+              <div className="flex justify-center pt-2">
+                <Button
+                  id="ask-revi-btn"
+                  onClick={() => {
+                    const isCorrect = answerState === 'correct';
+                    const promptText = isCorrect
+                      ? `I correctly answered "${selectedAnswer}" to the question: "${question.question_text}". Can you expand on this concept and provide deeper insights or real-world applications?`
+                      : `I answered "${selectedAnswer}" to the question: "${question.question_text}" but the correct answer is "${question.correct_answer}". Can you explain my mistake and why the correct answer is right?`;
+                    
+                    window.dispatchEvent(
+                      new CustomEvent('open-revi-chat', {
+                        detail: { message: promptText }
+                      })
+                    );
+                  }}
+                  className={cn(
+                    "w-full bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)]",
+                    "text-white shadow-md hover:scale-[1.02] transition-all duration-300",
+                    "flex items-center justify-center gap-2"
+                  )}
+                >
+                  <Sparkles className="h-4 w-4 text-white" />
+                  {answerState === 'correct'
+                    ? "Ask Revi to expand on this"
+                    : "Ask Revi to explain my mistake"}
+                </Button>
+              </div>
             </div>
           )}
         </div>

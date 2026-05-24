@@ -121,6 +121,32 @@ export function AiChatWidget() {
     }
   }, [isOpen, isMinimized]);
 
+  // Listen for custom event to open chat and pre-fill input
+  useEffect(() => {
+    const handleOpenChatEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message: string }>;
+      if (customEvent.detail && customEvent.detail.message) {
+        setIsOpen(true);
+        setIsMinimized(false);
+        setInput(customEvent.detail.message);
+        
+        // Auto-focus and adjust height of input
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.style.height = 'auto';
+            inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
+          }
+        }, 200);
+      }
+    };
+
+    window.addEventListener('open-revi-chat', handleOpenChatEvent);
+    return () => {
+      window.removeEventListener('open-revi-chat', handleOpenChatEvent);
+    };
+  }, []);
+
   const handleOpen = () => {
     setIsOpen(true);
     setIsMinimized(false);
@@ -186,7 +212,7 @@ export function AiChatWidget() {
           onClick={handleOpen}
           aria-label="Open Revi AI Chat"
           className={cn(
-            'fixed bottom-6 right-6 z-50',
+            'fixed bottom-24 lg:bottom-6 right-6 z-50',
             'w-14 h-14 rounded-full shadow-lg',
             'bg-gradient-to-br from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)]',
             'flex items-center justify-center',
@@ -206,7 +232,7 @@ export function AiChatWidget() {
         <div
           id="revi-chat-panel"
           className={cn(
-            'fixed bottom-6 right-6 z-50',
+            'fixed bottom-24 lg:bottom-6 right-6 z-50',
             'w-[360px] max-w-[calc(100vw-24px)]',
             'rounded-2xl shadow-2xl border border-border',
             'bg-card flex flex-col overflow-hidden',

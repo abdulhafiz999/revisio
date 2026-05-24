@@ -13,13 +13,17 @@ import {
   Trash2,
   ExternalLink,
   Share2,
-  AlertCircle
+  AlertCircle,
+  Flame,
+  TrendingUp,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiClient, Course, Topic, Question, SharedResource } from '@/services/api.client';
 import { useApi } from '@/hooks/useApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
+import { useStudy } from '@/context/StudyContext';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -51,10 +55,64 @@ const CourseQuestions: React.FC = () => {
 
   const { user } = useAuth();
   const { toast } = useToast();
+  const { progress, history } = useStudy();
 
   const { data: course, loading: courseLoading, execute: fetchCourse } = useApi(apiClient.getCourse);
   const { data: topics, loading: topicsLoading, execute: fetchTopics } = useApi(apiClient.getTopics);
   const { data: questions, loading: questionsLoading, execute: fetchQuestions } = useApi(apiClient.getQuestions);
+
+  const courseQuestionsMap = React.useMemo(() => {
+    const map = new Map<string, Question>();
+    questions?.forEach((q) => map.set(q.id, q));
+    return map;
+  }, [questions]);
+
+  const courseAttempts = React.useMemo(() => {
+    return history.filter((attempt) => courseQuestionsMap.has(attempt.question_id));
+  }, [history, courseQuestionsMap]);
+
+  const totalCourseAttempts = courseAttempts.length;
+  const correctCourseAttempts = courseAttempts.filter((a) => a.is_correct).length;
+  const courseAccuracy = totalCourseAttempts > 0 
+    ? Math.round((correctCourseAttempts / totalCourseAttempts) * 100) 
+    : 0;
+
+  const topicStats = React.useMemo(() => {
+    if (!topics || courseAttempts.length === 0) return [];
+    
+    // Group attempts by topic
+    const topicAttemptsMap: Record<string, { total: number; correct: number }> = {};
+    
+    courseAttempts.forEach((attempt) => {
+      const q = courseQuestionsMap.get(attempt.question_id);
+      if (q && q.topic_id) {
+        if (!topicAttemptsMap[q.topic_id]) {
+          topicAttemptsMap[q.topic_id] = { total: 0, correct: 0 };
+        }
+        topicAttemptsMap[q.topic_id].total += 1;
+        if (attempt.is_correct) {
+          topicAttemptsMap[q.topic_id].correct += 1;
+        }
+      }
+    });
+    
+    return topics.map((topic) => {
+      const stats = topicAttemptsMap[topic.id] || { total: 0, correct: 0 };
+      const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : null;
+      return {
+        ...topic,
+        total: stats.total,
+        correct: stats.correct,
+        accuracy,
+      };
+    }).filter(t => t.total > 0);
+  }, [topics, courseAttempts, courseQuestionsMap]);
+
+  const weakTopic = React.useMemo(() => {
+    const weak = topicStats.filter(t => t.accuracy !== null && t.accuracy < 60);
+    if (weak.length === 0) return null;
+    return weak.reduce((min, t) => (min.accuracy === null || (t.accuracy !== null && t.accuracy < min.accuracy) ? t : min), weak[0]);
+  }, [topicStats]);
 
   useEffect(() => {
     if (courseId) {
@@ -255,23 +313,109 @@ const CourseQuestions: React.FC = () => {
                   selectedDifficulty={selectedDifficulty}
                   onSelectDifficulty={setSelectedDifficulty}
                 />
-                
-                {/* Quick Stats */}
-                <div className="mt-4 p-4 rounded-xl border bg-card">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BookOpen className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">Quick Stats</span>
+                               {/* Advanced Interactive Course Analytics */}
+                <div className="mt-4 p-5 rounded-2xl border bg-card/60 backdrop-blur-md shadow-sm space-y-5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold tracking-tight">Course Analytics</span>
+                    <TrendingUp className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Showing</span>
-                      <span className="font-medium">{questions?.length || 0}</span>
+
+                  {/* Circular Accuracy Meter */}
+                  <div className="flex flex-col items-center justify-center py-2 relative">
+                    <div className="relative w-28 h-28 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        {/* Background track circle */}
+                        <circle
+                          cx="56"
+                          cy="56"
+                          r="44"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          fill="transparent"
+                          className="text-muted/30"
+                        />
+                        {/* Interactive glow layer */}
+                        <circle
+                          cx="56"
+                          cy="56"
+                          r="44"
+                          stroke="hsl(175,60%,35%)"
+                          strokeWidth="8"
+                          fill="transparent"
+                          strokeDasharray={2 * Math.PI * 44}
+                          strokeDashoffset={2 * Math.PI * 44 - (courseAccuracy / 100) * (2 * Math.PI * 44)}
+                          strokeLinecap="round"
+                          className="transition-all duration-1000 ease-out opacity-25 blur-[2px]"
+                        />
+                        {/* Active stroke progress circle */}
+                        <circle
+                          cx="56"
+                          cy="56"
+                          r="44"
+                          stroke="hsl(175,60%,35%)"
+                          strokeWidth="8"
+                          fill="transparent"
+                          strokeDasharray={2 * Math.PI * 44}
+                          strokeDashoffset={2 * Math.PI * 44 - (courseAccuracy / 100) * (2 * Math.PI * 44)}
+                          strokeLinecap="round"
+                          className="transition-all duration-1000 ease-out"
+                        />
+                      </svg>
+                      {/* Text indicator inside circle */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span className="text-2xl font-black text-foreground">{courseAccuracy}%</span>
+                        <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Accuracy</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Topics</span>
-                      <span className="font-medium">{topics?.length || 0}</span>
+                    <div className="mt-3 text-center">
+                      <p className="text-xs text-muted-foreground font-medium">
+                        {totalCourseAttempts > 0 
+                          ? `${correctCourseAttempts} of ${totalCourseAttempts} correct`
+                          : "No attempts yet in this course"}
+                      </p>
                     </div>
                   </div>
+
+                  {/* Daily Streak Indicator */}
+                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
+                      <Flame className="h-5 w-5 animate-pulse" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-base font-bold text-foreground">{progress?.streak_days || 0}</span>
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase">Day Streak</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-tight truncate">
+                        {(progress?.streak_days || 0) > 0 
+                          ? "Great momentum! Study daily." 
+                          : "Start your daily learning streak!"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Focus Topic Alert / Encouragement */}
+                  {weakTopic ? (
+                    <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/10 space-y-1">
+                      <div className="flex items-center gap-2 text-destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Focus Needed</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        You have <span className="font-semibold text-destructive">{weakTopic.accuracy}%</span> accuracy in <strong className="text-foreground">{weakTopic.name}</strong>. Practice more questions in this topic.
+                      </p>
+                    </div>
+                  ) : totalCourseAttempts > 0 ? (
+                    <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 space-y-1">
+                      <div className="flex items-center gap-2 text-emerald-500">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">On Track</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Keep up the excellent work! You are solidifying your understanding.
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
