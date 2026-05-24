@@ -3,11 +3,12 @@ import {
   generateQuestionsHandler,
   summarizeHandler,
   explainHandler,
-  studyGuideHandler
+  studyGuideHandler,
+  chatHandler
 } from '../controllers/ai.controller';
 import { verifyToken } from '../middleware/auth';
 import { validate } from '../middleware/validation';
-import { generateQuestionsSchema, aiNoteIdSchema, explainConceptSchema } from '../models/schemas';
+import { generateQuestionsSchema, aiNoteIdSchema, explainConceptSchema, chatSchema } from '../models/schemas';
 
 const router = Router();
 
@@ -53,6 +54,17 @@ router.post(
   verifyToken,
   validate(aiNoteIdSchema),
   studyGuideHandler
+);
+
+/**
+ * POST /api/ai/chat
+ * Chat with the Revi AI study assistant
+ */
+router.post(
+  '/chat',
+  verifyToken,
+  validate(chatSchema),
+  chatHandler
 );
 
 export default router;

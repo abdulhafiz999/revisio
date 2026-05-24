@@ -3,7 +3,9 @@ import {
   generateQuestions, 
   summarizeNotes, 
   explainConcept, 
-  generateStudyGuide 
+  generateStudyGuide,
+  chatWithAgent,
+  ChatMessage
 } from '../services/ai.service';
 import { getNoteById } from '../services/notes.service';
 import { saveGeneratedQuestions } from '../services/questions.service';
@@ -159,6 +161,32 @@ export async function studyGuideHandler(
     const response: ApiSuccessResponse<{ guide: string }> = {
       success: true,
       data: { guide },
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Chat with the Revi AI study assistant
+ * POST /api/ai/chat
+ */
+export async function chatHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { messages } = req.body as { messages: ChatMessage[] };
+
+    const reply = await chatWithAgent(messages);
+
+    const response: ApiSuccessResponse<{ reply: string }> = {
+      success: true,
+      data: { reply },
       timestamp: new Date().toISOString(),
     };
 

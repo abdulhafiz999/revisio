@@ -171,6 +171,11 @@ interface Explanation {
   related_concepts: string[];
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 interface Recommendation {
   topic_name: string;
   suggested_focus_areas: string[];
@@ -600,6 +605,14 @@ class ApiClient {
       '/api/ai/recommendations'
     );
     return response.data.data;
+  }
+
+  async sendChatMessage(messages: ChatMessage[]): Promise<string> {
+    const response = await axiosInstance.post<ApiSuccessResponse<{ reply: string }>>(
+      '/api/ai/chat',
+      { messages }
+    );
+    return response.data.data.reply;
   }
 }
 

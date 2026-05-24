@@ -106,6 +106,15 @@ export const explainConceptSchema = z.object({
     .max(200, 'Concept must not exceed 200 characters'),
 });
 
+export const chatSchema = z.object({
+  messages: z.array(
+    z.object({
+      role: z.enum(['user', 'assistant']),
+      content: z.string().min(1).max(4000),
+    })
+  ).min(1, 'At least one message is required').max(50, 'Too many messages'),
+});
+
 // ============================================================================
 // Course and Topic Schemas
 // ============================================================================
@@ -148,4 +157,5 @@ export type NoteInput = z.infer<typeof noteInputSchema>;
 export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
 export type GenerateQuestionsInput = z.infer<typeof generateQuestionsSchema>;
 export type ExplainConceptInput = z.infer<typeof explainConceptSchema>;
+export type ChatInput = z.infer<typeof chatSchema>;
 export type PaginationInput = z.infer<typeof paginationSchema>;
