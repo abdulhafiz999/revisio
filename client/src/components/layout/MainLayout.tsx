@@ -17,6 +17,7 @@ import { apiClient } from '@/services/api.client';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useTheme } from 'next-themes';
+import AiChatWidget from '@/components/AiChatWidget';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -205,6 +206,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           {children}
         </div>
       </main>
+
+      {/* Revi AI Chat Widget */}
+      <AiChatWidget />
     </div>
   );
 };

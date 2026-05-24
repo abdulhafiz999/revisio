@@ -331,3 +331,71 @@ Format with clear headings and bullet points.`;
     throw new Error(`Failed to generate study guide: ${err.message}`);
   }
 }
+
+// ============================================================================
+// AI Chat Agent
+// ============================================================================
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+const REVI_SYSTEM_PROMPT = `You are Revi, a friendly and knowledgeable AI study assistant built into Revisio — an AI-powered exam preparation platform for university students.
+
+Your role:
+- Help students understand academic concepts, theories, and subjects
+- Explain difficult topics clearly and concisely
+- Assist with exam preparation, study strategies, and learning techniques
+- Answer quick study-related questions across all university subjects
+
+Guidelines:
+- Be encouraging and supportive — students may be stressed about exams
+- Keep answers concise but thorough (aim for 2-4 paragraphs max for most answers)
+- Use bullet points and structure when explaining complex topics
+- If asked about something completely unrelated to studying or academics, politely redirect to study topics
+- Always be professional yet friendly in tone
+
+You are NOT a replacement for teachers or professional advice. If a student asks about mental health, medical, or legal issues, suggest they speak to a professional.`;
+
+/**
+ * Chat with the Revi AI study assistant (multi-turn conversation)
+ */
+export async function chatWithAgent(messages: ChatMessage[]): Promise<string> {
+  try {
+    logger.info(`Chat request with ${messages.length} messages`);
+
+    // Build the full conversation as a single prompt for Gemini
+    const conversationHistory = messages
+      .slice(0, -1) // all but the last message
+      .map((m) => `${m.role === 'user' ? 'Student' : 'Revi'}: ${m.content}`)
+      .join('\n\n');
+
+    const lastMessage = messages[messages.length - 1];
+    const currentQuestion = lastMessage.content;
+
+    const prompt = conversationHistory
+      ? `${REVI_SYSTEM_PROMPT}\n\n--- Conversation History ---\n${conversationHistory}\n\n--- Current Question ---\nStudent: ${currentQuestion}\n\nRevi:`
+      : `${REVI_SYSTEM_PROMPT}\n\n--- Student Question ---\nStudent: ${currentQuestion}\n\nRevi:`;
+
+    const reply = await generateGeminiText(
+      prompt,
+      { temperature: 0.7, maxOutputTokens: 1024 },
+      'chat with agent'
+    );
+
+    logger.info('Chat response generated successfully');
+    return reply.trim();
+  } catch (error: unknown) {
+    const err = error as Error;
+    logger.error('Error in chat agent:', err);
+    if (error instanceof RateLimitError || error instanceof ExternalServiceError) {
+      throw error;
+    }
+    if (isQuotaError(err.message)) {
+      throw new RateLimitError(quotaRetryMessage(err.message));
+    }
+    throw new Error(`Failed to get chat response: ${err.message}`);
+  }
+}
+
