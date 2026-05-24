@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useTheme } from 'next-themes';
 
 const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -21,6 +22,9 @@ const Login: React.FC = () => {
   const { toast } = useToast();
   const { login } = useAuth();
   const { loading, error, execute } = useApi(apiClient.login);
+  const { resolvedTheme } = useTheme();
+
+  const logoSrc = resolvedTheme === 'dark' ? '/iconwhite.png' : '/iconblack.png';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +77,7 @@ const Login: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center gap-2 mb-6">
               <div className="p-2 rounded-xl bg-primary/10">
-                <img src="/iconwhite.png" alt="REVISIO" className="h-10 w-10" />
+                 <img src={logoSrc} alt="REVISIO" className="h-10 w-10" />
               </div>
               <span className="text-2xl font-bold text-primary">Revisio</span>
             </div>
