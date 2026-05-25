@@ -305,20 +305,20 @@ const StudyNotes: React.FC = () => {
               {notes.map(note => (
                 <div
                   key={note.id}
-                  className="flex items-center justify-between p-4 rounded-xl border bg-card hover:shadow-sm transition-shadow"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border bg-card hover:shadow-sm transition-shadow"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-lg bg-primary/10">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="p-3 rounded-lg bg-primary/10 shrink-0">
                       <FileText className="h-5 w-5 text-primary" />
                     </div>
-                    <div>
-                      <p className="font-medium">{note.title}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{note.title}</p>
                       <p className="text-sm text-muted-foreground">
                         Uploaded {new Date(note.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {note.file_url && (
                       <Button
                         variant="outline"
