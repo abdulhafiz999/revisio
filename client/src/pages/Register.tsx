@@ -275,79 +275,40 @@ const Register: React.FC = () => {
       </div>
 
       {/* Right Side - Illustration */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-success/10 via-accent/5 to-primary/10 items-center justify-center p-12">
-        <div className="max-w-lg space-y-8 text-center">
-          {/* Illustration */}
-          <div className="relative">
-            <div className="absolute inset-0 bg-success/5 rounded-full blur-3xl" />
-            <div className="relative space-y-6">
-              {/* Main Icon */}
-              <div className="flex justify-center">
-                <div className="p-8 rounded-full bg-success/10 border-4 border-success/20">
-                  <Sparkles className="h-24 w-24 text-success" />
-                </div>
-              </div>
-
-              {/* Floating Icons */}
-              <div className="flex justify-center gap-8">
-                <div className="p-4 rounded-full bg-primary/10 border-2 border-primary/20 animate-pulse-subtle">
-                  <BookOpen className="h-8 w-8 text-primary" />
-                </div>
-                <div className="p-4 rounded-full bg-accent/10 border-2 border-accent/20 animate-pulse-subtle" style={{ animationDelay: '0.5s' }}>
-                  <Award className="h-8 w-8 text-accent" />
-                </div>
-                <div className="p-4 rounded-full bg-success/10 border-2 border-success/20 animate-pulse-subtle" style={{ animationDelay: '1s' }}>
-                  <Zap className="h-8 w-8 text-success" />
-                </div>
-              </div>
-            </div>
+       <div className="hidden lg:flex flex-1 items-center justify-center p-12 bg-background">
+        <div className="max-w-lg w-full flex flex-col items-center gap-8">
+          <div
+            className="relative w-full"
+            style={{
+              perspective: '1200px',
+            }}
+          >
+            {/* Glow behind image */}
+            <div
+              className="absolute inset-0 rounded-3xl blur-3xl opacity-30"
+              style={{ background: 'radial-gradient(ellipse at center, hsl(var(--primary)), transparent 70%)' }}
+            />
+            <img
+              src="/3dimage.png"
+              alt="Revisio Dashboard"
+              className="relative w-full rounded-3xl shadow-2xl"
+              style={{
+                transform: 'rotateY(-8deg) rotateX(4deg) scale(1.02)',
+                transformStyle: 'preserve-3d',
+                boxShadow: '0 40px 80px -20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
+                transition: 'transform 0.4s ease',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLImageElement).style.transform = 'rotateY(-4deg) rotateX(2deg) scale(1.04)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLImageElement).style.transform = 'rotateY(-8deg) rotateX(4deg) scale(1.02)';
+              }}
+            />
           </div>
-
-          {/* Text Content */}
-          <div className="space-y-4">
-            <h2 className="text-3xl font-bold">
-              Start your journey to exam success
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Join <span className="font-bold text-primary">Revisio</span> today and ace your exams
-            </p>
-          </div>
-
-          {/* Benefits */}
-          <div className="space-y-4 text-left max-w-sm mx-auto">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-success/10 mt-1">
-                <Sparkles className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="font-semibold">AI-Powered Learning</p>
-                <p className="text-sm text-muted-foreground">
-                  Get personalized recommendations and smart practice questions
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-accent/10 mt-1">
-                <Award className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <p className="font-semibold">Track Your Progress</p>
-                <p className="text-sm text-muted-foreground">
-                  Monitor your improvement with detailed analytics
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-primary/10 mt-1">
-                <Zap className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold">Study Smarter</p>
-                <p className="text-sm text-muted-foreground">
-                  Focus on weak areas and maximize your study time
-                </p>
-              </div>
-            </div>
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-bold">Make your exam prep easier and organized</h2>
+            <p className="text-muted-foreground">with <span className="font-bold text-primary">Revisio</span></p>
           </div>
         </div>
       </div>

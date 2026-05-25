@@ -208,59 +208,41 @@ const Login: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Side - Illustration */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 items-center justify-center p-12">
-        <div className="max-w-lg space-y-8 text-center">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/5 rounded-full blur-3xl" />
-            <div className="relative space-y-6">
-              <div className="flex justify-center">
-                <div className="p-8 rounded-full bg-primary/10 border-4 border-primary/20">
-                  <Brain className="h-24 w-24 text-primary" />
-                </div>
-              </div>
-              <div className="flex justify-center gap-8">
-                <div className="p-4 rounded-full bg-success/10 border-2 border-success/20 animate-pulse-subtle">
-                  <Target className="h-8 w-8 text-success" />
-                </div>
-                <div className="p-4 rounded-full bg-accent/10 border-2 border-accent/20 animate-pulse-subtle" style={{ animationDelay: '0.5s' }}>
-                  <TrendingUp className="h-8 w-8 text-accent" />
-                </div>
-                <div className="p-4 rounded-full bg-primary/10 border-2 border-primary/20 animate-pulse-subtle" style={{ animationDelay: '1s' }}>
-                  <BookOpen className="h-8 w-8 text-primary" />
-                </div>
-              </div>
-            </div>
+      {/* Right Side - 3D Image */}
+      <div className="hidden lg:flex flex-1 items-center justify-center p-12 bg-background">
+        <div className="max-w-lg w-full flex flex-col items-center gap-8">
+          <div
+            className="relative w-full"
+            style={{
+              perspective: '1200px',
+            }}
+          >
+            {/* Glow behind image */}
+            <div
+              className="absolute inset-0 rounded-3xl blur-3xl opacity-30"
+              style={{ background: 'radial-gradient(ellipse at center, hsl(var(--primary)), transparent 70%)' }}
+            />
+            <img
+              src="/3dimage.png"
+              alt="Revisio Dashboard"
+              className="relative w-full rounded-3xl shadow-2xl"
+              style={{
+                transform: 'rotateY(-8deg) rotateX(4deg) scale(1.02)',
+                transformStyle: 'preserve-3d',
+                boxShadow: '0 40px 80px -20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
+                transition: 'transform 0.4s ease',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLImageElement).style.transform = 'rotateY(-4deg) rotateX(2deg) scale(1.04)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLImageElement).style.transform = 'rotateY(-8deg) rotateX(4deg) scale(1.02)';
+              }}
+            />
           </div>
-
-          <div className="space-y-4">
-            <h2 className="text-3xl font-bold">
-              Make your exam prep easier and organized
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              with <span className="font-bold text-primary">Revisio</span>
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 pt-8">
-            <div className="space-y-2">
-              <div className="p-3 rounded-xl bg-primary/10 mx-auto w-fit">
-                <BookOpen className="h-6 w-6 text-primary" />
-              </div>
-              <p className="text-sm font-medium">Smart Practice</p>
-            </div>
-            <div className="space-y-2">
-              <div className="p-3 rounded-xl bg-success/10 mx-auto w-fit">
-                <Target className="h-6 w-6 text-success" />
-              </div>
-              <p className="text-sm font-medium">Track Progress</p>
-            </div>
-            <div className="space-y-2">
-              <div className="p-3 rounded-xl bg-accent/10 mx-auto w-fit">
-                <TrendingUp className="h-6 w-6 text-accent" />
-              </div>
-              <p className="text-sm font-medium">Improve Fast</p>
-            </div>
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-bold">Make your exam prep easier and organized</h2>
+            <p className="text-muted-foreground">with <span className="font-bold text-primary">Revisio</span></p>
           </div>
         </div>
       </div>
