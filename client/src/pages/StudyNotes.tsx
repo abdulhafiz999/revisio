@@ -543,7 +543,8 @@ const StudyNotes: React.FC = () => {
 
       {/* Share Note Dialog */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent className="max-w-md w-full animate-scale-in overflow-hidden">  {/* add overflow-hidden here */}
+        {/* Tweaked the className below to add rounded-2xl and changed w-full to w-[90%] */}
+        <DialogContent className="max-w-md w-[90%] rounded-2xl animate-scale-in overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Share2 className="h-5 w-5 text-primary animate-pulse" />
@@ -554,7 +555,7 @@ const StudyNotes: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
-            <div className="grid grid-cols-[1fr_auto] items-center gap-2 p-3 rounded-lg bg-muted border">  {/* swap flex for grid */}
+            <div className="grid grid-cols-[1fr_auto] items-center gap-2 p-3 rounded-lg bg-muted border">
               <span className="text-xs text-muted-foreground truncate overflow-hidden select-all px-2 font-mono">
                 {shareUrl}
               </span>
