@@ -224,7 +224,7 @@ const Login: React.FC = () => {
             />
             <img
               src="/3dimage.png"
-              alt="Revisio Dashboard"
+              alt="3D image"
               className="relative w-full rounded-3xl shadow-2xl"
               style={{
                 transform: 'rotateY(-8deg) rotateX(4deg) scale(1.02)',
