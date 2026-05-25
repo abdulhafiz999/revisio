@@ -98,7 +98,7 @@ const Login: React.FC = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="example@gmail.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
@@ -223,7 +223,7 @@ const Login: React.FC = () => {
               style={{ background: 'radial-gradient(ellipse at center, hsl(var(--primary)), transparent 70%)' }}
             />
             <img
-              src="/3dimage.png"
+              src="/3dimage.pngEmail"
               alt="Revisio Dashboard"
               className="relative w-full rounded-3xl shadow-2xl"
               style={{
