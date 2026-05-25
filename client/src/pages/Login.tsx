@@ -223,7 +223,7 @@ const Login: React.FC = () => {
               style={{ background: 'radial-gradient(ellipse at center, hsl(var(--primary)), transparent 70%)' }}
             />
             <img
-              src="/3dimage.pngEmail"
+              src="/3dimage.png"
               alt="Revisio Dashboard"
               className="relative w-full rounded-3xl shadow-2xl"
               style={{
