@@ -15,6 +15,7 @@ import {
   Upload,
   Brain,
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 const steps = [
   {
@@ -42,6 +43,7 @@ const steps = [
     icon: BarChart3,
   },
 ];
+
 
 const features = [
   {
@@ -83,6 +85,10 @@ const iconBg: Record<string, string> = {
 
 const Landing: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const { resolvedTheme } = useTheme();
+
+  const logoSrc = resolvedTheme === 'dark' ? '/iconwhite.png' : '/iconblack.png';
+
 
   if (isLoading) {
     return (
@@ -103,7 +109,7 @@ const Landing: React.FC = () => {
         <div className="max-w-6xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2">
             <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-primary">
-              <GraduationCap className="h-5 w-5 text-primary-foreground" />
+              <img src={logoSrc} alt="REVISIO" className="h-10 w-10" />
             </div>
             <span className="font-bold text-lg">REVISIO</span>
           </Link>
