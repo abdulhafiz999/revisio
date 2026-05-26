@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, X, Send, Loader2, ChevronDown, Bot } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, ChevronDown, Bot, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient, ChatMessage } from '@/services/api.client';
 import { useToast } from '@/hooks/use-toast';
@@ -103,6 +103,7 @@ export function AiChatWidget() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
@@ -128,6 +129,7 @@ export function AiChatWidget() {
       if (customEvent.detail && customEvent.detail.message) {
         setIsOpen(true);
         setIsMinimized(false);
+        setIsExpanded(false);
         setInput(customEvent.detail.message);
         
         // Auto-focus and adjust height of input
@@ -233,12 +235,12 @@ export function AiChatWidget() {
           id="revi-chat-panel"
           className={cn(
             'fixed bottom-24 lg:bottom-6 right-6 z-50',
-            'w-[360px] max-w-[calc(100vw-24px)]',
+            isExpanded ? 'w-[calc(100vw-48px)] md:w-[600px] lg:w-[800px]' : 'w-[360px] max-w-[calc(100vw-24px)]',
             'rounded-2xl shadow-2xl border border-border',
             'bg-card flex flex-col overflow-hidden',
             'transition-all duration-300 ease-out',
             'animate-slide-up',
-            isMinimized ? 'h-14' : 'h-[520px] max-h-[calc(100vh-100px)]'
+            isMinimized ? 'h-14' : isExpanded ? 'h-[80vh] max-h-[85vh]' : 'h-[520px] max-h-[calc(100vh-100px)]'
           )}
         >
           {/* Header */}
@@ -263,6 +265,20 @@ export function AiChatWidget() {
                 )}
               />
             </button>
+            {!isMinimized && (
+              <button
+                id="revi-chat-expand-btn"
+                onClick={() => setIsExpanded(!isExpanded)}
+                aria-label={isExpanded ? 'Shrink chat' : 'Expand chat'}
+                className="w-7 h-7 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
+              >
+                {isExpanded ? (
+                  <Minimize2 className="w-4 h-4 text-white" />
+                ) : (
+                  <Maximize2 className="w-4 h-4 text-white" />
+                )}
+              </button>
+            )}
             <button
               id="revi-chat-close-btn"
               onClick={handleClose}
