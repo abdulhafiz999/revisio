@@ -87,7 +87,7 @@ const Landing: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const { resolvedTheme } = useTheme();
 
-  const logoSrc = resolvedTheme === 'dark' ? '/iconwhite.png' : '/iconblack.png';
+  const logoSrc = resolvedTheme === 'dark' ? '/iconwhite.png' : '/iconwhite.png';
 
 
   if (isLoading) {
