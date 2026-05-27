@@ -104,8 +104,12 @@ export function AiChatWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const chatPanelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   // Auto-scroll to bottom when new messages arrive
@@ -148,6 +152,50 @@ export function AiChatWidget() {
       window.removeEventListener('open-revi-chat', handleOpenChatEvent);
     };
   }, []);
+
+  // Handle dragging
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      setPosition(prev => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY
+      }));
+      
+      setDragStart({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'grabbing';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isDragging, dragStart]);
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    // Only allow dragging from the header
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return; // Don't drag when clicking buttons
+    
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -232,19 +280,33 @@ export function AiChatWidget() {
       {/* Chat panel */}
       {isOpen && (
         <div
+          ref={chatPanelRef}
           id="revi-chat-panel"
           className={cn(
-            'fixed bottom-24 lg:bottom-6 right-6 z-50',
+            'fixed z-50',
             isExpanded ? 'w-[calc(100vw-48px)] md:w-[600px] lg:w-[800px]' : 'w-[360px] max-w-[calc(100vw-24px)]',
             'rounded-2xl shadow-2xl border border-border',
             'bg-card flex flex-col overflow-hidden',
             'transition-all duration-300 ease-out',
             'animate-slide-up',
-            isMinimized ? 'h-14' : isExpanded ? 'h-[80vh] max-h-[85vh]' : 'h-[520px] max-h-[calc(100vh-100px)]'
+            isMinimized ? 'h-14' : isExpanded ? 'h-[80vh] max-h-[85vh]' : 'h-[520px] max-h-[calc(100vh-100px)]',
+            isDragging && 'transition-none'
           )}
+          style={{
+            bottom: position.y === 0 ? 'calc(6rem + 1.5rem)' : 'auto',
+            right: position.x === 0 && position.y === 0 ? '1.5rem' : 'auto',
+            top: position.y !== 0 ? `calc(50vh - 260px + ${position.y}px)` : 'auto',
+            left: position.x !== 0 ? `calc(100vw - 1.5rem - 360px + ${position.x}px)` : 'auto',
+          }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)] flex-shrink-0">
+          <div 
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 border-b bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)] flex-shrink-0",
+              isDragging ? "cursor-grabbing" : "cursor-grab"
+            )}
+            onMouseDown={handleDragStart}
+          >
             <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 text-white" />
             </div>
