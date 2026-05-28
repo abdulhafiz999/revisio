@@ -1,5 +1,6 @@
 import { supabaseAnon, supabaseAdmin } from '../config/database';
 import { AuthResponse, RegisterRequest, LoginRequest, ResetPasswordRequest } from '../models/types';
+import { emailService } from './email.service';
 
 /**
  * Authentication Service
@@ -54,6 +55,11 @@ export class AuthService {
     } catch (syncError) {
       console.error('Error syncing user:', syncError);
     }
+
+    // Send a welcome email to the new user (fire-and-forget – never blocks registration)
+    emailService.sendWelcomeEmail(email).catch((mailErr) => {
+      console.error('Failed to send welcome email:', mailErr);
+    });
 
     // If no session, email confirmation is required
     // Return user info without session - frontend should show "check your email" message
@@ -180,5 +186,4 @@ export class AuthService {
   }
 }
 
-// Export singleton instance
 export const authService = new AuthService();

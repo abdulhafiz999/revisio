@@ -39,9 +39,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     }
 
+    // Check if we're on the reset password page - if so, don't auto-login
+    const isResetPasswordPage = window.location.pathname.includes('/reset-password');
+
     // Listen for Supabase OAuth session (Google sign-in callback)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
+      // Only auto-login if it's NOT on the reset password page
+      if (session?.user && !isResetPasswordPage) {
         const oauthUser = { id: session.user.id, email: session.user.email || '' };
         localStorage.setItem(TOKEN_KEY, session.access_token);
         localStorage.setItem(USER_KEY, JSON.stringify(oauthUser));
@@ -51,7 +55,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
 
     // Subscribe to auth state changes (handles OAuth redirect)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Don't auto-login on reset password page - let ResetPassword component handle it
+      if (window.location.pathname.includes('/reset-password')) {
+        return;
+      }
+
       if (session?.user) {
         const oauthUser = { id: session.user.id, email: session.user.email || '' };
         localStorage.setItem(TOKEN_KEY, session.access_token);

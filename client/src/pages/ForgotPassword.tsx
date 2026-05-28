@@ -3,18 +3,37 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BookOpen, Mail, ArrowLeft } from 'lucide-react';
+import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { apiClient } from '@/services/api.client';
+import { useToast } from '@/hooks/use-toast';
+import { useTheme } from 'next-themes';
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const logoSrc = resolvedTheme === 'dark' ? '/iconwhite.png' : '/iconblack.png';
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement password reset logic with API
-    console.log('Password reset for:', email);
-    setIsSubmitted(true);
+    setLoading(true);
+    try {
+      await apiClient.resetPassword(email);
+      setIsSubmitted(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      toast({
+        title: 'Failed to send reset link',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -27,7 +46,7 @@ const ForgotPassword: React.FC = () => {
         <div className="space-y-2">
           <div className="flex items-center gap-2 mb-6">
             <div className="p-2 rounded-xl bg-primary/10">
-              <BookOpen className="h-6 w-6 text-primary" />
+              <img src={logoSrc} alt="Revisio" className="h-8 w-8" />
             </div>
             <span className="text-2xl font-bold text-primary">Revisio</span>
           </div>
@@ -75,8 +94,13 @@ const ForgotPassword: React.FC = () => {
               type="submit"
               className="w-full h-12 rounded-full text-base font-semibold"
               size="lg"
+              disabled={loading}
             >
-              Send Reset Link
+              {loading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending...</>
+              ) : (
+                'Send Reset Link'
+              )}
             </Button>
 
             {/* Back to Login */}
