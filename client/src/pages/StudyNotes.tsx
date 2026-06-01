@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,6 +43,8 @@ import {
 const StudyNotes: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [showQuestionsDialog, setShowQuestionsDialog] = useState(false);
+  const [isQuizMinimized, setIsQuizMinimized] = useState(false);
+  const isMinimizingRef = useRef(false);
   const [showGeneratingDialog, setShowGeneratingDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showAIResultDialog, setShowAIResultDialog] = useState(false);
@@ -80,6 +82,21 @@ const StudyNotes: React.FC = () => {
   useEffect(() => {
     fetchNotes();
   }, []);
+
+  useEffect(() => {
+    const handleOpenReviChat = () => {
+      if (showQuestionsDialog) {
+        isMinimizingRef.current = true;
+        setShowQuestionsDialog(false);
+        setIsQuizMinimized(true);
+      }
+    };
+
+    window.addEventListener('open-revi-chat', handleOpenReviChat);
+    return () => {
+      window.removeEventListener('open-revi-chat', handleOpenReviChat);
+    };
+  }, [showQuestionsDialog]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -477,7 +494,14 @@ const StudyNotes: React.FC = () => {
         open={showQuestionsDialog}
         onOpenChange={(open) => {
           setShowQuestionsDialog(open);
-          if (!open) refreshProgress();
+          if (!open) {
+            refreshProgress();
+            if (isMinimizingRef.current) {
+              isMinimizingRef.current = false;
+            } else {
+              setIsQuizMinimized(false);
+            }
+          }
         }}
       >
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden [&>button]:hidden">
@@ -494,6 +518,7 @@ const StudyNotes: React.FC = () => {
                 className="shrink-0"
                 onClick={() => {
                   setShowQuestionsDialog(false);
+                  setIsQuizMinimized(false);
                   refreshProgress();
                 }}
               >
@@ -514,7 +539,10 @@ const StudyNotes: React.FC = () => {
                   Your dashboard stats have been updated.
                 </p>
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/dashboard" onClick={() => setShowQuestionsDialog(false)}>
+                  <Link to="/dashboard" onClick={() => {
+                    setShowQuestionsDialog(false);
+                    setIsQuizMinimized(false);
+                  }}>
                     View Dashboard
                   </Link>
                 </Button>
@@ -523,6 +551,53 @@ const StudyNotes: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Minimized Quiz Widget */}
+      {isQuizMinimized && practiceQuestions.length > 0 && (
+        <div 
+          onClick={() => {
+            setShowQuestionsDialog(true);
+            setIsQuizMinimized(false);
+          }}
+          className={cn(
+            "fixed bottom-24 lg:bottom-6 left-6 z-40 cursor-pointer animate-fade-in",
+            "flex items-center gap-3 p-4 rounded-xl border border-border shadow-lg",
+            "bg-card/90 backdrop-blur-md hover:bg-card hover:scale-105 transition-all duration-300",
+            "select-none max-w-sm sm:max-w-md"
+          )}
+        >
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 relative">
+            <FileQuestion className="w-5 h-5 animate-pulse" />
+            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+            </span>
+          </div>
+          <div className="flex-1 min-w-0 pr-2">
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Practice Quiz Minimized</p>
+            <p className="text-sm font-semibold text-foreground truncate">
+              {practiceQuestions.length} {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Questions
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex-1 w-24 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div 
+                  className="h-full bg-primary rounded-full transition-all duration-500 ease-out animate-pulse-subtle"
+                  style={{ width: `${(practiceQuestions.filter(q => hasAttempted(q.id)).length / practiceQuestions.length) * 100}%` }}
+                />
+              </div>
+              <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                {practiceQuestions.filter(q => hasAttempted(q.id)).length}/{practiceQuestions.length}
+              </span>
+            </div>
+          </div>
+          <Button 
+            size="sm" 
+            className="shrink-0 bg-gradient-primary text-primary-foreground hover:opacity-95 text-xs font-semibold px-3 py-1.5 h-8 rounded-lg shadow-sm"
+          >
+            Resume
+          </Button>
+        </div>
+      )}
 
       {/* AI Result Dialog (Summary/Study Guide) */}
       <Dialog open={showAIResultDialog} onOpenChange={setShowAIResultDialog}>
