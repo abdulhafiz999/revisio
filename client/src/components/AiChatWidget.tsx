@@ -119,10 +119,14 @@ export function AiChatWidget() {
     }
   }, [messages, isOpen, isMinimized]);
 
-  // Focus input when chat opens
+  // Focus input when chat opens (desktop only to avoid keyboard popup on mobile)
   useEffect(() => {
     if (isOpen && !isMinimized) {
-      setTimeout(() => inputRef.current?.focus(), 150);
+      // Only auto-focus on desktop (width > 1024px)
+      const isDesktop = window.innerWidth > 1024;
+      if (isDesktop) {
+        setTimeout(() => inputRef.current?.focus(), 150);
+      }
     }
   }, [isOpen, isMinimized]);
 
@@ -136,14 +140,25 @@ export function AiChatWidget() {
         setIsExpanded(false);
         setInput(customEvent.detail.message);
         
-        // Auto-focus and adjust height of input
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.style.height = 'auto';
-            inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
-          }
-        }, 200);
+        // Auto-focus and adjust height of input (desktop only)
+        const isDesktop = window.innerWidth > 1024;
+        if (isDesktop) {
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.focus();
+              inputRef.current.style.height = 'auto';
+              inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
+            }
+          }, 200);
+        } else {
+          // On mobile, just adjust height without focusing
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.style.height = 'auto';
+              inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`;
+            }
+          }, 200);
+        }
       }
     };
 
