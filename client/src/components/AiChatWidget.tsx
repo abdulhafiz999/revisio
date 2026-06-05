@@ -107,10 +107,21 @@ export function AiChatWidget() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Detect if mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -123,12 +134,11 @@ export function AiChatWidget() {
   useEffect(() => {
     if (isOpen && !isMinimized) {
       // Only auto-focus on desktop (width > 1024px)
-      const isDesktop = window.innerWidth > 1024;
-      if (isDesktop) {
+      if (!isMobile) {
         setTimeout(() => inputRef.current?.focus(), 150);
       }
     }
-  }, [isOpen, isMinimized]);
+  }, [isOpen, isMinimized, isMobile]);
 
   // Listen for custom event to open chat and pre-fill input
   useEffect(() => {
@@ -141,8 +151,7 @@ export function AiChatWidget() {
         setInput(customEvent.detail.message);
         
         // Auto-focus and adjust height of input (desktop only)
-        const isDesktop = window.innerWidth > 1024;
-        if (isDesktop) {
+        if (!isMobile) {
           setTimeout(() => {
             if (inputRef.current) {
               inputRef.current.focus();
@@ -166,7 +175,7 @@ export function AiChatWidget() {
     return () => {
       window.removeEventListener('open-revi-chat', handleOpenChatEvent);
     };
-  }, []);
+  }, [isMobile]);
 
   // Handle dragging
   useEffect(() => {
@@ -304,14 +313,35 @@ export function AiChatWidget() {
             'bg-card flex flex-col overflow-hidden',
             'transition-all duration-300 ease-out',
             'animate-slide-up',
-            isMinimized ? 'h-14' : isExpanded ? 'h-[80vh] max-h-[85vh]' : 'h-[520px] max-h-[calc(100vh-100px)]',
+            isMinimized ? 'h-14' : isExpanded ? 'h-[80vh] max-h-[85vh]' : 'h-[520px] max-h-[calc(100vh-180px)]',
             isDragging && 'transition-none'
           )}
           style={{
-            bottom: position.y === 0 ? 'calc(6rem + 1.5rem)' : 'auto',
-            right: position.x === 0 && position.y === 0 ? '1.5rem' : 'auto',
-            top: position.y !== 0 ? `calc(50vh - 260px + ${position.y}px)` : 'auto',
-            left: position.x !== 0 ? `calc(100vw - 1.5rem - 360px + ${position.x}px)` : 'auto',
+            // Mobile: center vertically in the middle of screen to avoid navbar
+            ...(isMobile && position.x === 0 && position.y === 0 && {
+              top: '50%',
+              transform: 'translateY(-50%)',
+              right: '0.75rem',
+              left: '0.75rem',
+              margin: '0 auto'
+            }),
+            // Desktop: bottom right position
+            ...(!isMobile && position.x === 0 && position.y === 0 && {
+              bottom: 'calc(1.5rem)',
+              right: '1.5rem',
+              top: 'auto',
+              transform: 'none'
+            }),
+            // Custom dragging position (overrides above)
+            ...(position.y !== 0 && {
+              top: `calc(50vh - 260px + ${position.y}px)`,
+              bottom: 'auto',
+              transform: 'none'
+            }),
+            ...(position.x !== 0 && {
+              left: `calc(100vw - 1.5rem - 360px + ${position.x}px)`,
+              right: 'auto'
+            })
           }}
         >
           {/* Header */}
