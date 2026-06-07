@@ -367,6 +367,14 @@ class ApiClient {
     return response.data.data;
   }
 
+  async updatePassword(password: string): Promise<{ message: string }> {
+    const response = await axiosInstance.post<ApiSuccessResponse<{ message: string }>>(
+      '/api/auth/update-password',
+      { password }
+    );
+    return response.data.data;
+  }
+
   // ==========================================================================
   // Course and Topic Methods
   // ==========================================================================

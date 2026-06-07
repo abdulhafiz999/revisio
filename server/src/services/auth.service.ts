@@ -1,4 +1,5 @@
-import { supabaseAnon, supabaseAdmin } from '../config/database';
+import { supabaseAnon, supabaseAdmin, getSupabaseClientForUser } from '../config/database';
+import { env } from '../config/environment';
 import { AuthResponse, RegisterRequest, LoginRequest, ResetPasswordRequest } from '../models/types';
 
 /**
@@ -46,7 +47,7 @@ export class AuthService {
           id: authData.user.id,
           email: authData.user.email,
         });
-      
+
       if (insertError) {
         console.error('Failed to sync user to users table:', insertError);
         // Don't throw - auth user is created, this is just supplementary
@@ -164,10 +165,11 @@ export class AuthService {
    */
   async resetPassword(data: ResetPasswordRequest): Promise<{ message: string }> {
     const { email } = data;
+    const frontendUrl = env.FRONTEND_URL.split(',')[0].trim();
 
     // Send password reset email
     const { error } = await supabaseAnon.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password`,
+      redirectTo: `${frontendUrl}/reset-password`,
     });
 
     if (error) {
@@ -176,6 +178,26 @@ export class AuthService {
 
     return {
       message: 'Password reset email sent. Please check your inbox.',
+    };
+  }
+
+  /**
+   * Update user's password using their access token
+   * 
+   * @param accessToken - The user's current access token (from recovery link)
+   * @param password - The new password
+   * @throws Error if password update fails
+   */
+  async updatePassword(accessToken: string, password: string): Promise<{ message: string }> {
+    const client = getSupabaseClientForUser(accessToken);
+    const { error } = await client.auth.updateUser({ password });
+
+    if (error) {
+      throw new Error(`Password update failed: ${error.message}`);
+    }
+
+    return {
+      message: 'Password has been successfully updated.',
     };
   }
 }

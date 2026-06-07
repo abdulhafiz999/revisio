@@ -20,6 +20,13 @@ export const resetPasswordSchema = z.object({
   email: z.string().email('Invalid email address'),
 });
 
+export const updatePasswordSchema = z.object({
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(100, 'Password must not exceed 100 characters'),
+});
+
+
 // ============================================================================
 // Question Schemas
 // ============================================================================
@@ -151,6 +158,7 @@ export const paginationSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type UpdatePasswordInput = z.infer<typeof updatePasswordSchema>;
 export type QuestionFilters = z.infer<typeof questionFiltersSchema>;
 export type AttemptSubmissionInput = z.infer<typeof attemptSubmissionSchema>;
 export type NoteInput = z.infer<typeof noteInputSchema>;

@@ -46,12 +46,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.setItem(TOKEN_KEY, session.access_token);
         localStorage.setItem(USER_KEY, JSON.stringify(oauthUser));
         setUser(oauthUser);
+
+        // Check if user came from a recovery link
+        if (window.location.hash.includes('type=recovery') && window.location.pathname !== '/reset-password') {
+          window.location.href = '/reset-password';
+          return;
+        }
       }
       setIsLoading(false);
     });
 
-    // Subscribe to auth state changes (handles OAuth redirect)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Subscribe to auth state changes (handles OAuth redirect & recovery)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' && session) {
+        const oauthUser = { id: session.user.id, email: session.user.email || '' };
+        localStorage.setItem(TOKEN_KEY, session.access_token);
+        localStorage.setItem(USER_KEY, JSON.stringify(oauthUser));
+        setUser(oauthUser);
+        if (window.location.pathname !== '/reset-password') {
+          window.location.href = '/reset-password';
+        }
+        return;
+      }
+
       if (session?.user) {
         const oauthUser = { id: session.user.id, email: session.user.email || '' };
         localStorage.setItem(TOKEN_KEY, session.access_token);

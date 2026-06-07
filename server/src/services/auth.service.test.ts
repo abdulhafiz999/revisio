@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { authService } from './auth.service';
 import { supabaseAnon } from '../config/database';
 
+const mockUpdateUser = vi.fn();
+
 // Mock the database module
 vi.mock('../config/database', () => ({
   supabaseAnon: {
@@ -10,10 +12,22 @@ vi.mock('../config/database', () => ({
       signInWithPassword: vi.fn(),
       signOut: vi.fn(),
       getUser: vi.fn(),
+      setSession: vi.fn().mockResolvedValue({ error: null }),
       resetPasswordForEmail: vi.fn(),
     },
   },
+  supabaseAdmin: {
+    from: vi.fn(() => ({
+      insert: vi.fn().mockResolvedValue({ error: null }),
+    })),
+  },
+  getSupabaseClientForUser: vi.fn(() => ({
+    auth: {
+      updateUser: mockUpdateUser,
+    },
+  })),
 }));
+
 
 describe('AuthService', () => {
   beforeEach(() => {
@@ -60,6 +74,7 @@ describe('AuthService', () => {
           refresh_token: mockSession.refresh_token,
           expires_at: mockSession.expires_at,
         },
+        emailConfirmationRequired: false,
       });
     });
 
@@ -74,7 +89,7 @@ describe('AuthService', () => {
           email: 'existing@example.com',
           password: 'password123',
         })
-      ).rejects.toThrow('Email already exists');
+      ).rejects.toThrow('An account with this email already exists.');
     });
 
     it('should throw error when registration fails', async () => {
@@ -88,7 +103,7 @@ describe('AuthService', () => {
           email: 'test@example.com',
           password: 'password123',
         })
-      ).rejects.toThrow('Registration failed: Registration error');
+      ).rejects.toThrow('Registration failed. Please try again.');
     });
   });
 
@@ -201,6 +216,33 @@ describe('AuthService', () => {
           email: 'test@example.com',
         })
       ).rejects.toThrow('Password reset failed: Reset error');
+    });
+  });
+
+  describe('updatePassword', () => {
+    it('should successfully update user password', async () => {
+      mockUpdateUser.mockResolvedValue({
+        data: {},
+        error: null,
+      });
+
+      const result = await authService.updatePassword('token-123', 'newpassword123');
+
+      expect(result).toEqual({
+        message: 'Password has been successfully updated.',
+      });
+      expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpassword123' });
+    });
+
+    it('should throw error when update fails', async () => {
+      mockUpdateUser.mockResolvedValue({
+        data: {},
+        error: { message: 'Update error', name: 'AuthError', status: 500 },
+      });
+
+      await expect(
+        authService.updatePassword('token-123', 'newpassword123')
+      ).rejects.toThrow('Password update failed: Update error');
     });
   });
 });

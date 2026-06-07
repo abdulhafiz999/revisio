@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { authController } from '../controllers/auth.controller';
+import { verifyToken } from '../middleware/auth';
+
 
 /**
  * Authentication Routes
@@ -99,5 +101,28 @@ router.post('/logout', (req, res) => authController.logout(req, res));
  * Note: Always returns success to prevent email enumeration
  */
 router.post('/reset-password', (req, res) => authController.resetPassword(req, res));
+
+/**
+ * POST /api/auth/update-password
+ * Update user password
+ * 
+ * Headers:
+ * Authorization: Bearer <access_token>
+ * 
+ * Request body:
+ * {
+ *   password: string (min 8 characters)
+ * }
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: {
+ *     message: string
+ *   },
+ *   timestamp: string
+ * }
+ */
+router.post('/update-password', verifyToken, (req, res) => authController.updatePassword(req, res));
 
 export default router;

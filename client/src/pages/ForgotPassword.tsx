@@ -5,16 +5,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BookOpen, Mail, ArrowLeft } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { supabase } from '@/lib/supabaseClient';
+import { useToast } from '@/hooks/use-toast';
+
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement password reset logic with API
-    console.log('Password reset for:', email);
-    setIsSubmitted(true);
+    setIsSending(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      // window.location.origin automatically uses localhost in dev
+      // and https://revisio-seven.vercel.app in production
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    setIsSending(false);
+
+    if (!error) {
+      setIsSubmitted(true);
+      toast({
+        title: 'Reset Link Sent',
+        description: 'Please check your email inbox.',
+      });
+    } else {
+      toast({
+        title: 'Failed to Send Reset Link',
+        description: error.message || 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -75,8 +100,9 @@ const ForgotPassword: React.FC = () => {
               type="submit"
               className="w-full h-12 rounded-full text-base font-semibold"
               size="lg"
+              disabled={isSending}
             >
-              Send Reset Link
+              {isSending ? 'Sending Link...' : 'Send Reset Link'}
             </Button>
 
             {/* Back to Login */}
