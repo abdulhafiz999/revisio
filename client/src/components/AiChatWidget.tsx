@@ -97,6 +97,8 @@ const WELCOME_MESSAGE: ChatMessage = {
     "Hey there! 👋 I'm **Revi**, your AI study assistant. I'm here to help you understand concepts, prepare for exams, and answer your academic questions.\n\nWhat would you like to know?",
 };
 
+const MOBILE_BREAKPOINT = 1024;
+
 export function AiChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
@@ -107,10 +109,60 @@ export function AiChatWidget() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Match MainLayout mobile breakpoint (lg = 1024px)
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const update = () => setIsMobileView(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  // Hide mobile nav & lock scroll while sheet is open
+  useEffect(() => {
+    if (isOpen && isMobileView) {
+      document.body.classList.add('revi-chat-open');
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.classList.remove('revi-chat-open');
+        document.body.style.overflow = '';
+      };
+    }
+    document.body.classList.remove('revi-chat-open');
+    return undefined;
+  }, [isOpen, isMobileView]);
+
+  // Keep sheet above mobile keyboard
+  useEffect(() => {
+    if (!isOpen || !isMobileView) {
+      setKeyboardOffset(0);
+      return;
+    }
+
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const handleViewportChange = () => {
+      const offset = window.innerHeight - vv.height - vv.offsetTop;
+      setKeyboardOffset(Math.max(0, offset));
+    };
+
+    vv.addEventListener('resize', handleViewportChange);
+    vv.addEventListener('scroll', handleViewportChange);
+    handleViewportChange();
+
+    return () => {
+      vv.removeEventListener('resize', handleViewportChange);
+      vv.removeEventListener('scroll', handleViewportChange);
+    };
+  }, [isOpen, isMobileView]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -292,35 +344,70 @@ export function AiChatWidget() {
         </button>
       )}
 
+      {/* Mobile backdrop */}
+      {isOpen && isMobileView && (
+        <div
+          className="fixed inset-0 z-[55] bg-black/40 lg:hidden"
+          onClick={handleClose}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Chat panel */}
       {isOpen && (
         <div
           ref={chatPanelRef}
           id="revi-chat-panel"
           className={cn(
-            'fixed z-50',
-            isExpanded ? 'w-[calc(100vw-48px)] md:w-[600px] lg:w-[800px]' : 'w-[360px] max-w-[calc(100vw-24px)]',
-            'rounded-2xl shadow-2xl border border-border',
-            'bg-card flex flex-col overflow-hidden',
+            'fixed z-[60] flex flex-col overflow-hidden bg-card',
             'transition-all duration-300 ease-out',
-            'animate-slide-up',
-            isMinimized ? 'h-14' : isExpanded ? 'h-[80vh] max-h-[85vh]' : 'h-[520px] max-h-[calc(100vh-100px)]',
-            isDragging && 'transition-none'
+            // Mobile: full-width bottom sheet covering nav
+            'inset-x-0 bottom-0 w-full rounded-t-lg border-t border-border shadow-2xl',
+            'h-[80vh] max-h-[80vh] animate-slide-up',
+            // Desktop: floating panel
+            'lg:inset-x-auto lg:rounded-2xl lg:border lg:shadow-2xl',
+            'lg:right-6 lg:bottom-6 lg:left-auto lg:top-auto lg:max-h-none',
+            isExpanded
+              ? 'lg:w-[calc(100vw-48px)] lg:w-[800px]'
+              : 'lg:w-[360px] lg:max-w-[calc(100vw-24px)]',
+            isMinimized
+              ? 'lg:h-14'
+              : isExpanded
+                ? 'lg:h-[80vh] lg:max-h-[85vh]'
+                : 'lg:h-[520px] lg:max-h-[calc(100vh-100px)]',
+            isDragging && 'lg:transition-none'
           )}
-          style={{
-            bottom: position.y === 0 ? 'calc(6rem + 1.5rem)' : 'auto',
-            right: position.x === 0 && position.y === 0 ? '1.5rem' : 'auto',
-            top: position.y !== 0 ? `calc(50vh - 260px + ${position.y}px)` : 'auto',
-            left: position.x !== 0 ? `calc(100vw - 1.5rem - 360px + ${position.x}px)` : 'auto',
-          }}
+          style={
+            isMobileView
+              ? {
+                  bottom: keyboardOffset > 0 ? keyboardOffset : 0,
+                  ...(keyboardOffset > 0 && {
+                    height: `calc(80vh - ${keyboardOffset}px)`,
+                    maxHeight: `calc(80vh - ${keyboardOffset}px)`,
+                  }),
+                }
+              : {
+                  bottom: position.y === 0 ? undefined : 'auto',
+                  right: position.x === 0 && position.y === 0 ? undefined : 'auto',
+                  top: position.y !== 0 ? `calc(50vh - 260px + ${position.y}px)` : 'auto',
+                  left: position.x !== 0 ? `calc(100vw - 1.5rem - 360px + ${position.x}px)` : 'auto',
+                }
+          }
         >
+          {/* Mobile drag handle */}
+          {isMobileView && (
+            <div className="flex justify-center pt-2.5 pb-0.5 lg:hidden flex-shrink-0">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+            </div>
+          )}
+
           {/* Header */}
           <div
             className={cn(
-              "flex items-center gap-3 px-4 py-3 border-b bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)] flex-shrink-0",
-              isDragging ? "cursor-grabbing" : "cursor-grab"
+              'flex items-center gap-3 px-4 py-3 border-b bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)] flex-shrink-0',
+              !isMobileView && (isDragging ? 'cursor-grabbing' : 'cursor-grab')
             )}
-            onMouseDown={handleDragStart}
+            onMouseDown={!isMobileView ? handleDragStart : undefined}
           >
             <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 text-white" />
@@ -329,32 +416,36 @@ export function AiChatWidget() {
               <p className="font-semibold text-white text-sm leading-tight">Revi</p>
               <p className="text-white/70 text-xs">AI Study Assistant</p>
             </div>
-            <button
-              id="revi-chat-minimize-btn"
-              onClick={() => setIsMinimized(!isMinimized)}
-              aria-label={isMinimized ? 'Expand chat' : 'Minimize chat'}
-              className="w-7 h-7 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
-            >
-              <ChevronDown
-                className={cn(
-                  'w-4 h-4 text-white transition-transform duration-200',
-                  isMinimized ? 'rotate-180' : ''
+            {!isMobileView && (
+              <>
+                <button
+                  id="revi-chat-minimize-btn"
+                  onClick={() => setIsMinimized(!isMinimized)}
+                  aria-label={isMinimized ? 'Expand chat' : 'Minimize chat'}
+                  className="w-7 h-7 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
+                >
+                  <ChevronDown
+                    className={cn(
+                      'w-4 h-4 text-white transition-transform duration-200',
+                      isMinimized ? 'rotate-180' : ''
+                    )}
+                  />
+                </button>
+                {!isMinimized && (
+                  <button
+                    id="revi-chat-expand-btn"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    aria-label={isExpanded ? 'Shrink chat' : 'Expand chat'}
+                    className="w-7 h-7 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
+                  >
+                    {isExpanded ? (
+                      <Minimize2 className="w-4 h-4 text-white" />
+                    ) : (
+                      <Maximize2 className="w-4 h-4 text-white" />
+                    )}
+                  </button>
                 )}
-              />
-            </button>
-            {!isMinimized && (
-              <button
-                id="revi-chat-expand-btn"
-                onClick={() => setIsExpanded(!isExpanded)}
-                aria-label={isExpanded ? 'Shrink chat' : 'Expand chat'}
-                className="w-7 h-7 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
-              >
-                {isExpanded ? (
-                  <Minimize2 className="w-4 h-4 text-white" />
-                ) : (
-                  <Maximize2 className="w-4 h-4 text-white" />
-                )}
-              </button>
+              </>
             )}
             <button
               id="revi-chat-close-btn"
@@ -366,8 +457,8 @@ export function AiChatWidget() {
             </button>
           </div>
 
-          {/* Messages area */}
-          {!isMinimized && (
+          {/* Messages area — always visible on mobile; desktop respects minimize */}
+          {(!isMinimized || isMobileView) && (
             <>
               <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 scroll-smooth">
                 {messages.map((msg, idx) => (
@@ -418,7 +509,7 @@ export function AiChatWidget() {
               </div>
 
               {/* Input area */}
-              <div className="flex-shrink-0 border-t bg-card px-3 py-3">
+              <div className="flex-shrink-0 border-t bg-card px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 <div className="flex items-end gap-2 bg-muted rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-primary/40 transition-shadow">
                   <textarea
                     ref={inputRef}
@@ -457,7 +548,7 @@ export function AiChatWidget() {
                     )}
                   </button>
                 </div>
-                <p className="text-center text-xs text-muted-foreground mt-2 opacity-60">
+                <p className="hidden lg:block text-center text-xs text-muted-foreground mt-2 opacity-60">
                   Press Enter to send · Shift+Enter for new line
                 </p>
               </div>

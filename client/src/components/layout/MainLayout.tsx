@@ -142,7 +142,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       </header>
 
       {/* Mobile Bottom Navigation (Glassmorphic Floating Pill like iPhone) */}
-      <nav className="lg:hidden fixed bottom-4 left-4 right-4 z-50 h-16 bg-card/85 backdrop-blur-lg border border-border/80 rounded-2xl flex items-center justify-around px-2 shadow-[0_8px_32px_0_rgba(0,0,0,0.12)]">
+      <nav id="mobile-bottom-nav" className="lg:hidden fixed bottom-4 left-4 right-4 z-50 h-16 bg-card/85 backdrop-blur-lg border border-border/80 rounded-2xl flex items-center justify-around px-2 shadow-[0_8px_32px_0_rgba(0,0,0,0.12)]">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (

@@ -231,4 +231,12 @@
       transform: scale(1);
     }
   }
+
+  /* Hide mobile nav while Revi chat sheet is open */
+  @media (max-width: 1023px) {
+    body.revi-chat-open #mobile-bottom-nav {
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
 }
