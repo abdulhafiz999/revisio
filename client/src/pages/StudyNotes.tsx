@@ -228,44 +228,76 @@ const StudyNotes: React.FC = () => {
           </div>
         </div>
 
+        <input
+          type="file"
+          accept=".pdf"
+          multiple
+          onChange={handleFileInput}
+          className="hidden"
+          id="file-upload"
+          disabled={uploading}
+        />
+
+        {/* Mobile: upload button only */}
+        <div className="lg:hidden rounded-xl border bg-card p-6 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="p-4 rounded-full bg-muted">
+              <Upload className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-medium">
+                {uploading ? 'Uploading...' : 'Upload your PDF study notes'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Tap below to choose a file from your device
+              </p>
+            </div>
+            <Button asChild disabled={uploading}>
+              <label htmlFor="file-upload" className="cursor-pointer">
+                {uploading ? 'Uploading...' : 'Upload PDF'}
+              </label>
+            </Button>
+          </div>
+        </div>
+
+        {/* Desktop: drag and drop zone */}
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            "border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200",
+            'hidden lg:block border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200',
             isDragging
-              ? "border-primary bg-primary/5"
-              : "border-border hover:border-primary/50 hover:bg-muted/50"
+              ? 'border-primary bg-primary/5'
+              : 'border-border hover:border-primary/50 hover:bg-muted/50'
           )}
         >
           <div className="flex flex-col items-center gap-4">
-            <div className={cn(
-              "p-4 rounded-full transition-colors",
-              isDragging ? "bg-primary/10" : "bg-muted"
-            )}>
-              <Upload className={cn(
-                "h-8 w-8 transition-colors",
-                isDragging ? "text-primary" : "text-muted-foreground"
-              )} />
+            <div
+              className={cn(
+                'p-4 rounded-full transition-colors',
+                isDragging ? 'bg-primary/10' : 'bg-muted'
+              )}
+            >
+              <Upload
+                className={cn(
+                  'h-8 w-8 transition-colors',
+                  isDragging ? 'text-primary' : 'text-muted-foreground'
+                )}
+              />
             </div>
             <div>
               <p className="font-medium">
-                {uploading ? "Uploading..." : isDragging ? "Drop your files here" : "Drag and drop your PDF files here"}
+                {uploading
+                  ? 'Uploading...'
+                  : isDragging
+                    ? 'Drop your files here'
+                    : 'Drag and drop your PDF files here'}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 or click to browse from your computer
               </p>
             </div>
-            <input
-              type="file"
-              accept=".pdf"
-              multiple
-              onChange={handleFileInput}
-              className="hidden"
-              id="file-upload"
-              disabled={uploading}
-            />
             <Button asChild variant="outline" disabled={uploading}>
               <label htmlFor="file-upload" className="cursor-pointer">
                 Browse Files
