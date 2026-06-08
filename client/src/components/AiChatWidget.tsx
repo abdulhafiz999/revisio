@@ -359,14 +359,12 @@ export function AiChatWidget() {
           ref={chatPanelRef}
           id="revi-chat-panel"
           className={cn(
-            'fixed z-[60] flex flex-col overflow-hidden bg-card',
-            'transition-all duration-300 ease-out',
+            'fixed z-[60]',
+            'transition-all duration-300 ease-out animate-slide-up',
             // Mobile: full-width bottom sheet covering nav
-            'inset-x-0 bottom-0 w-full rounded-t-lg border-t border-border shadow-2xl',
-            'h-[80vh] max-h-[80vh] animate-slide-up',
+            'inset-x-0 bottom-0 w-full h-[80vh] max-h-[80vh]',
             // Desktop: floating panel
-            'lg:inset-x-auto lg:rounded-2xl lg:border lg:shadow-2xl',
-            'lg:right-6 lg:bottom-6 lg:left-auto lg:top-auto lg:max-h-none',
+            'lg:inset-x-auto lg:bottom-6 lg:right-6 lg:left-auto lg:top-auto lg:max-h-none',
             isExpanded
               ? 'lg:w-[calc(100vw-48px)] lg:w-[800px]'
               : 'lg:w-[360px] lg:max-w-[calc(100vw-24px)]',
@@ -394,21 +392,28 @@ export function AiChatWidget() {
                 }
           }
         >
-          {/* Mobile drag handle */}
-          {isMobileView && (
-            <div className="flex justify-center pt-2.5 pb-0.5 lg:hidden flex-shrink-0">
-              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
-            </div>
-          )}
-
-          {/* Header */}
+          {/* Inner shell — rounded corners + overflow clip (separate from transform animation) */}
           <div
             className={cn(
-              'flex items-center gap-3 px-4 py-3 border-b bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)] flex-shrink-0',
+              'flex h-full w-full flex-col overflow-hidden bg-card shadow-2xl',
+              'rounded-t-xl lg:rounded-2xl lg:border lg:border-border'
+            )}
+          >
+          {/* Header — drag handle lives inside so top corners match the sheet */}
+          <div
+            className={cn(
+              'flex flex-shrink-0 flex-col bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)]',
+              isMobileView && 'rounded-t-xl',
               !isMobileView && (isDragging ? 'cursor-grabbing' : 'cursor-grab')
             )}
             onMouseDown={!isMobileView ? handleDragStart : undefined}
           >
+            {isMobileView && (
+              <div className="flex justify-center pt-2.5 pb-1 lg:hidden">
+                <div className="h-1 w-9 rounded-full bg-white/35" />
+              </div>
+            )}
+            <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
             <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 text-white" />
             </div>
@@ -455,6 +460,7 @@ export function AiChatWidget() {
             >
               <X className="w-4 h-4 text-white" />
             </button>
+            </div>
           </div>
 
           {/* Messages area — always visible on mobile; desktop respects minimize */}
@@ -554,6 +560,7 @@ export function AiChatWidget() {
               </div>
             </>
           )}
+          </div>
         </div>
       )}
     </>
