@@ -1,21 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BookOpen, 
   FileText, 
   Lightbulb,
-  GraduationCap,
-  LogOut
+  LogOut,
+  UserRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
-import { apiClient } from '@/services/api.client';
+import { apiClient, UserProfile } from '@/services/api.client';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useTheme } from 'next-themes';
 import AiChatWidget from '@/components/AiChatWidget';
+import ProfileSheet from '@/components/ProfileSheet';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -34,8 +35,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { logout, user } = useAuth();
   const { toast } = useToast();
   const { resolvedTheme } = useTheme();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   const logoSrc = resolvedTheme === 'dark' ? '/iconwhite.png' : '/iconblack.png';
+  const displayName = profile?.display_name || user?.email || 'Student';
+  const avatarInitial = (profile?.display_name || user?.email || 'U').charAt(0).toUpperCase();
+
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+
+    apiClient.getProfile().then(setProfile).catch(() => {
+      // Profile is optional — don't block the app if it fails
+    });
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -88,14 +104,21 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         {/* Footer */}
         <div className="p-4 border-t space-y-3">
           {/* User Info */}
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-semibold">
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            className="flex w-full items-center gap-3 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left"
+          >
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-semibold flex-shrink-0">
+              {avatarInitial}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.email}</p>
+              <p className="text-sm font-medium truncate">{displayName}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {profile?.program ? `${profile.program} · Edit profile` : 'Set your program for Revi'}
+              </p>
             </div>
-          </div>
+          </button>
           
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -127,6 +150,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <span className="font-bold">REVISIO</span>
           </Link>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setProfileOpen(true)}
+              aria-label="Open profile"
+              className="hover:bg-muted"
+            >
+              <UserRound className="h-5 w-5 text-muted-foreground" />
+            </Button>
             <ThemeToggle />
             <Button
               variant="ghost"
@@ -175,6 +207,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
       {/* Revi AI Chat Widget */}
       <AiChatWidget />
+
+      <ProfileSheet
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        onSaved={setProfile}
+      />
     </div>
   );
 };

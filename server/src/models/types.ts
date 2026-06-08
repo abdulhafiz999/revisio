@@ -8,8 +8,24 @@
 export interface User {
   id: string;
   email: string;
+  display_name?: string | null;
+  program?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  display_name: string | null;
+  program: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateProfileRequest {
+  display_name?: string | null;
+  program?: string | null;
 }
 
 export interface Course {

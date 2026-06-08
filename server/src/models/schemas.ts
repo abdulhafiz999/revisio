@@ -122,6 +122,23 @@ export const chatSchema = z.object({
   ).min(1, 'At least one message is required').max(50, 'Too many messages'),
 });
 
+export const updateProfileSchema = z.object({
+  display_name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(100, 'Name must not exceed 100 characters')
+    .optional()
+    .nullable(),
+  program: z
+    .string()
+    .trim()
+    .min(1, 'Program is required')
+    .max(100, 'Program must not exceed 100 characters')
+    .optional()
+    .nullable(),
+});
+
 // ============================================================================
 // Course and Topic Schemas
 // ============================================================================

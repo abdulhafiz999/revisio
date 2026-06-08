@@ -176,6 +176,20 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  display_name: string | null;
+  program: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateProfileInput {
+  display_name?: string | null;
+  program?: string | null;
+}
+
 interface Recommendation {
   topic_name: string;
   suggested_focus_areas: string[];
@@ -622,6 +636,21 @@ class ApiClient {
     );
     return response.data.data.reply;
   }
+
+  async getProfile(): Promise<UserProfile> {
+    const response = await axiosInstance.get<ApiSuccessResponse<UserProfile>>(
+      '/api/users/profile'
+    );
+    return response.data.data;
+  }
+
+  async updateProfile(input: UpdateProfileInput): Promise<UserProfile> {
+    const response = await axiosInstance.patch<ApiSuccessResponse<UserProfile>>(
+      '/api/users/profile',
+      input
+    );
+    return response.data.data;
+  }
 }
 
 // ============================================================================
@@ -646,6 +675,8 @@ export type {
   WeeklyActivityDay,
   StudyNote,
   SharedResource,
+  UserProfile,
+  UpdateProfileInput,
   NoteInput,
   GeneratedQuestion,
   Explanation,

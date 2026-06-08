@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI, type GenerationConfig } from '@google/generative-ai';
 import { env } from '../config/environment';
 import { logger } from '../utils/logger';
-import { GeneratedQuestion } from '../models/types';
+import { GeneratedQuestion, UserProfile } from '../models/types';
 import { ExternalServiceError, RateLimitError } from '../middleware/errorHandler';
 
 // ============================================================================
@@ -21,7 +21,7 @@ const MAX_CHAT_HISTORY = 20;
 // AI Prompts Configuration
 // ============================================================================
 
-const REVI_SYSTEM_PROMPT = `You are Revi, a friendly and knowledgeable AI study assistant built into Revisio — an AI-powered exam preparation platform for university students.
+const REVI_BASE_SYSTEM_PROMPT = `You are Revi, a friendly and knowledgeable AI study assistant built into Revisio — an AI-powered exam preparation platform for university students.
 
 Your role:
 - Help students understand academic concepts, theories, and subjects
@@ -37,6 +37,33 @@ Guidelines:
 - Always be professional yet friendly in tone
 
 You are NOT a replacement for teachers or professional advice. If a student asks about mental health, medical, or legal issues, suggest they speak to a professional.`;
+
+function buildReviSystemPrompt(profile?: UserProfile | null): string {
+  if (!profile?.display_name && !profile?.program) {
+    return REVI_BASE_SYSTEM_PROMPT;
+  }
+
+  const studentLines: string[] = [];
+  if (profile.display_name) {
+    studentLines.push(`- Name: ${profile.display_name}`);
+  }
+  if (profile.program) {
+    studentLines.push(`- University program: ${profile.program}`);
+  }
+
+  return `${REVI_BASE_SYSTEM_PROMPT}
+
+Current student context:
+${studentLines.join('\n')}
+
+Personalization rules:
+- Act as a personal study tutor specialized in their university program (e.g. Medicine, Law, Computer Science, Physics).
+- Address the student by name when natural (not every sentence).
+- Use terminology, examples, and teaching style appropriate for their field of study.
+- A Computer Science student should get CS-oriented explanations; a Medical student should get clinically relevant framing; a Law student should get legal reasoning patterns, etc.
+- When a question spans multiple fields, answer from their program's perspective first, then broaden if helpful.
+- If they ask about topics outside their program, still help — but connect back to their discipline when useful.`;
+}
 
 const buildQuestionPrompt = (
   count: number,
@@ -396,12 +423,16 @@ export interface ChatMessage {
  * Chat with the Revi AI study assistant (multi-turn conversation)
  * Uses native Gemini startChat() for proper multi-turn context handling
  */
-export async function chatWithAgent(messages: ChatMessage[]): Promise<string> {
+export async function chatWithAgent(
+  messages: ChatMessage[],
+  profile?: UserProfile | null
+): Promise<string> {
   if (!messages.length) throw new Error('Messages cannot be empty');
 
   const models = getModelsToTry(env.GEMINI_MODEL);
   let lastError: Error | null = null;
   const recentMessages = messages.slice(-MAX_CHAT_HISTORY);
+  const systemPrompt = buildReviSystemPrompt(profile);
 
   logger.info(`Chat request with ${recentMessages.length} messages. Primary model: ${env.GEMINI_MODEL}`);
 
@@ -411,7 +442,7 @@ export async function chatWithAgent(messages: ChatMessage[]): Promise<string> {
         const model = genAI.getGenerativeModel({
           model: modelName,
           generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-          systemInstruction: REVI_SYSTEM_PROMPT,
+          systemInstruction: systemPrompt,
         });
 
         // Use native startChat() for proper multi-turn handling

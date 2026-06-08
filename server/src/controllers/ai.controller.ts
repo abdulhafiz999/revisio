@@ -9,6 +9,7 @@ import {
 } from '../services/ai.service';
 import { getNoteById } from '../services/notes.service';
 import { saveGeneratedQuestions } from '../services/questions.service';
+import { getUserProfile } from '../services/users.service';
 import { ApiSuccessResponse } from '../models/types';
 
 /**
@@ -181,8 +182,10 @@ export async function chatHandler(
 ): Promise<void> {
   try {
     const { messages } = req.body as { messages: ChatMessage[] };
+    const user = (req as any).user;
+    const profile = await getUserProfile(user.id, user.email);
 
-    const reply = await chatWithAgent(messages);
+    const reply = await chatWithAgent(messages, profile);
 
     const response: ApiSuccessResponse<{ reply: string }> = {
       success: true,
