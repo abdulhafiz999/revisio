@@ -98,6 +98,10 @@ const WELCOME_MESSAGE: ChatMessage = {
 };
 
 const MOBILE_BREAKPOINT = 1024;
+const DEFAULT_SHEET_HEIGHT_VH = 80;
+const MIN_SHEET_HEIGHT_VH = 40;
+const MAX_SHEET_HEIGHT_VH = 95;
+const DISMISS_SHEET_HEIGHT_VH = 32;
 
 export function AiChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -111,10 +115,80 @@ export function AiChatWidget() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isMobileView, setIsMobileView] = useState(false);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [sheetHeightVh, setSheetHeightVh] = useState(DEFAULT_SHEET_HEIGHT_VH);
+  const [isSheetResizing, setIsSheetResizing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
+  const sheetDragRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  const sheetHeightVhRef = useRef(sheetHeightVh);
   const { toast } = useToast();
+
+  useEffect(() => {
+    sheetHeightVhRef.current = sheetHeightVh;
+  }, [sheetHeightVh]);
+
+  const getMobileSheetHeight = (vh: number) =>
+    keyboardOffset > 0
+      ? `calc(${vh}vh - ${keyboardOffset}px)`
+      : `${vh}vh`;
+
+  const snapSheetHeight = (heightVh: number) => {
+    if (heightVh < 55) return 50;
+    if (heightVh < 86) return DEFAULT_SHEET_HEIGHT_VH;
+    return MAX_SHEET_HEIGHT_VH;
+  };
+
+  const handleSheetResizeStart = (clientY: number) => {
+    setIsSheetResizing(true);
+    sheetDragRef.current = { startY: clientY, startHeight: sheetHeightVhRef.current };
+  };
+
+  const handleSheetResizeMove = (clientY: number) => {
+    if (!sheetDragRef.current) return;
+    const deltaY = sheetDragRef.current.startY - clientY;
+    const deltaVh = (deltaY / window.innerHeight) * 100;
+    const nextHeight = Math.min(
+      MAX_SHEET_HEIGHT_VH,
+      Math.max(MIN_SHEET_HEIGHT_VH, sheetDragRef.current.startHeight + deltaVh)
+    );
+    setSheetHeightVh(nextHeight);
+  };
+
+  const handleSheetResizeEnd = () => {
+    if (!sheetDragRef.current) return;
+    setIsSheetResizing(false);
+    sheetDragRef.current = null;
+
+    const current = sheetHeightVhRef.current;
+    if (current < DISMISS_SHEET_HEIGHT_VH) {
+      setIsOpen(false);
+      setSheetHeightVh(DEFAULT_SHEET_HEIGHT_VH);
+      return;
+    }
+    setSheetHeightVh(snapSheetHeight(current));
+  };
+
+  const handleSheetPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isMobileView || e.button > 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    handleSheetResizeStart(e.clientY);
+  };
+
+  const handleSheetPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!sheetDragRef.current) return;
+    e.preventDefault();
+    handleSheetResizeMove(e.clientY);
+  };
+
+  const handleSheetPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!sheetDragRef.current) return;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    handleSheetResizeEnd();
+  };
 
   // Match MainLayout mobile breakpoint (lg = 1024px)
   useEffect(() => {
@@ -267,10 +341,12 @@ export function AiChatWidget() {
   const handleOpen = () => {
     setIsOpen(true);
     setIsMinimized(false);
+    setSheetHeightVh(DEFAULT_SHEET_HEIGHT_VH);
   };
 
   const handleClose = () => {
     setIsOpen(false);
+    setSheetHeightVh(DEFAULT_SHEET_HEIGHT_VH);
   };
 
   const handleSend = async () => {
@@ -360,9 +436,9 @@ export function AiChatWidget() {
           id="revi-chat-panel"
           className={cn(
             'fixed z-[60]',
-            'transition-all duration-300 ease-out animate-slide-up',
+            !isSheetResizing && 'transition-all duration-300 ease-out animate-slide-up',
             // Mobile: full-width bottom sheet covering nav
-            'inset-x-0 bottom-0 w-full h-[80vh] max-h-[80vh]',
+            'inset-x-0 bottom-0 w-full',
             // Desktop: floating panel
             'lg:inset-x-auto lg:bottom-6 lg:right-6 lg:left-auto lg:top-auto lg:max-h-none',
             isExpanded
@@ -379,10 +455,8 @@ export function AiChatWidget() {
             isMobileView
               ? {
                   bottom: keyboardOffset > 0 ? keyboardOffset : 0,
-                  ...(keyboardOffset > 0 && {
-                    height: `calc(80vh - ${keyboardOffset}px)`,
-                    maxHeight: `calc(80vh - ${keyboardOffset}px)`,
-                  }),
+                  height: getMobileSheetHeight(sheetHeightVh),
+                  maxHeight: getMobileSheetHeight(sheetHeightVh),
                 }
               : {
                   bottom: position.y === 0 ? undefined : 'auto',
@@ -409,8 +483,18 @@ export function AiChatWidget() {
             onMouseDown={!isMobileView ? handleDragStart : undefined}
           >
             {isMobileView && (
-              <div className="flex justify-center pt-2.5 pb-1 lg:hidden">
-                <div className="h-1 w-9 rounded-full bg-white/35" />
+              <div
+                className={cn(
+                  'flex justify-center py-3 lg:hidden touch-none select-none',
+                  isSheetResizing ? 'cursor-grabbing' : 'cursor-grab'
+                )}
+                onPointerDown={handleSheetPointerDown}
+                onPointerMove={handleSheetPointerMove}
+                onPointerUp={handleSheetPointerEnd}
+                onPointerCancel={handleSheetPointerEnd}
+                aria-label="Drag to resize chat"
+              >
+                <div className="h-1 w-10 rounded-full bg-white/40" />
               </div>
             )}
             <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
