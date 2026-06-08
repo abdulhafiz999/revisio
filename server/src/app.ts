@@ -16,7 +16,6 @@ import aiRoutes from './routes/ai.routes';
 import coursesRoutes from './routes/courses.routes';
 import topicsRoutes from './routes/topics.routes';
 import questionsRoutes from './routes/questions.routes';
-import uploadRoutes from './routes/upload.routes';
 
 /**
  * Configure and initialize Express application
@@ -77,7 +76,6 @@ export function createApp(): Application {
   app.use('/api/courses', coursesRoutes);
   app.use('/api/topics', topicsRoutes);
   app.use('/api/questions', questionsRoutes);
-  app.use('/api/upload', uploadRoutes);
 
   // ============================================================================
   // Error Handling

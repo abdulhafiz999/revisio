@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../config/database';
+import { deleteStoredFile } from './file-storage.service';
 import { logger } from '../utils/logger';
 import { StudyNote } from '../models/types';
 
@@ -133,6 +134,25 @@ export async function deleteNote(
   noteId: string
 ): Promise<void> {
   try {
+    const { data: note, error: fetchError } = await supabaseAdmin
+      .from('study_notes')
+      .select('file_url')
+      .eq('id', noteId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !note) {
+      throw new Error('Note not found');
+    }
+
+    if (note.file_url) {
+      try {
+        await deleteStoredFile(note.file_url);
+      } catch (error) {
+        logger.warn(`File storage cleanup failed for note ${noteId}:`, error);
+      }
+    }
+
     const { error } = await supabaseAdmin
       .from('study_notes')
       .delete()

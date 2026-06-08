@@ -7,11 +7,6 @@ import { noteInputSchema, updateNoteSchema } from '../models/schemas';
 import { logger } from '../utils/logger';
 
 /**
- * Notes Controller
- * Handles HTTP requests for study notes
- */
-
-/**
  * Create a new note
  * POST /api/notes
  */
@@ -60,19 +55,7 @@ export async function uploadPDFHandler(
       return;
     }
 
-    // Validate file type
-    if (file.mimetype !== 'application/pdf') {
-      res.status(400).json({
-        success: false,
-        error: 'Only PDF files are allowed',
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
-
-    // Extract text from PDF
     const text = await extractText(file.buffer);
-
     if (!text) {
       res.status(400).json({
         success: false,
@@ -82,33 +65,21 @@ export async function uploadPDFHandler(
       return;
     }
 
-    // Upload PDF to Cloudinary (replaces Supabase Storage)
-    logger.info(`Uploading PDF to Cloudinary: ${file.originalname}`);
-    let fileUrl: string | undefined = undefined;
-
+    let fileUrl: string | undefined;
     try {
-      const uploadResult = await uploadPdf(
-        file.buffer,
-        file.originalname,
-        `revisio/notes/${userId}`
-      );
-      fileUrl = uploadResult.url;
-      logger.info(`PDF uploaded successfully to Cloudinary: ${uploadResult.publicId}`);
-    } catch (uploadError) {
-      logger.error('Error uploading PDF to Cloudinary:', uploadError);
-      // Continue anyway - we still have the text
+      const upload = await uploadPdf(file.buffer, file.originalname, `revisio/notes/${userId}`);
+      fileUrl = upload.url;
+    } catch (error) {
+      logger.error('Cloudinary upload failed, saving note without file URL:', error);
     }
 
-    // Create note with extracted text and file URL
     const note = await createNote(userId, file.originalname, text, fileUrl);
 
-    const response: ApiSuccessResponse<typeof note> = {
+    res.status(201).json({
       success: true,
       data: note,
       timestamp: new Date().toISOString(),
-    };
-
-    res.status(201).json(response);
+    });
   } catch (error) {
     next(error);
   }
@@ -246,4 +217,3 @@ export async function getSharedNoteHandler(
     next(error);
   }
 }
-

@@ -1,16 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { uploadPdf, deleteFile } from './cloudinary.service';
+import { uploadPdf, deletePdf, parseCloudinaryUrl } from './cloudinary.service';
 
-// Mock cloudinary
 vi.mock('../config/cloudinary', () => ({
   cloudinary: {
     uploader: {
-      upload_stream: vi.fn(),
+      upload: vi.fn(),
       destroy: vi.fn(),
-    },
-    api: {
-      resource: vi.fn(),
-      resources: vi.fn(),
     },
   },
 }));
@@ -20,26 +15,26 @@ describe('Cloudinary Service', () => {
     vi.clearAllMocks();
   });
 
-  describe('uploadPdf', () => {
-    it('should upload a PDF successfully', async () => {
-      // This is a placeholder test
-      // In a real scenario, you'd mock the upload_stream function
-      expect(uploadPdf).toBeDefined();
-    });
-
-    it('should handle upload errors', async () => {
-      // Test error handling
-      expect(uploadPdf).toBeDefined();
-    });
+  it('exports upload and delete functions', () => {
+    expect(uploadPdf).toBeDefined();
+    expect(deletePdf).toBeDefined();
   });
 
-  describe('deleteFile', () => {
-    it('should delete a file successfully', async () => {
-      expect(deleteFile).toBeDefined();
-    });
+  it('parses Cloudinary raw and image PDF URLs', () => {
+    expect(
+      parseCloudinaryUrl(
+        'https://res.cloudinary.com/demo/raw/upload/v123/revisio/notes/user/123_file.pdf'
+      )
+    ).toEqual({ publicId: 'revisio/notes/user/123_file', resourceType: 'raw' });
 
-    it('should handle delete errors', async () => {
-      expect(deleteFile).toBeDefined();
-    });
+    expect(
+      parseCloudinaryUrl(
+        'https://res.cloudinary.com/demo/image/upload/v123/revisio/notes/user/123_Lecture%203.pdf'
+      )
+    ).toEqual({ publicId: 'revisio/notes/user/123_Lecture 3', resourceType: 'image' });
+  });
+
+  it('returns null for non-Cloudinary URLs', () => {
+    expect(parseCloudinaryUrl('https://example.com/file.pdf')).toBeNull();
   });
 });

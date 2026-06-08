@@ -1,117 +1,94 @@
 import { cloudinary } from '../config/cloudinary';
 import { logger } from '../utils/logger';
-import { UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
-
-/**
- * Cloudinary Service
- * Handles file uploads to Cloudinary
- */
 
 export interface CloudinaryUploadResult {
   url: string;
   publicId: string;
-  format: string;
   bytes: number;
-  createdAt: string;
+}
+
+function sanitizeFileName(fileName: string): string {
+  return fileName
+    .replace(/\.pdf$/i, '')
+    .replace(/[^\w.-]/g, '_');
 }
 
 /**
- * Upload a PDF file to Cloudinary
+ * Upload a PDF to Cloudinary as a raw file (direct download/view).
+ * Requires "Allow delivery of PDF and ZIP files" in Cloudinary Security settings.
  */
 export async function uploadPdf(
   fileBuffer: Buffer,
   fileName: string,
-  folder: string = 'revisio/pdfs'
+  folder = 'revisio/notes'
 ): Promise<CloudinaryUploadResult> {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
+  const publicId = `${Date.now()}_${sanitizeFileName(fileName)}`;
+
+  try {
+    const result = await cloudinary.uploader.upload(
+      `data:application/pdf;base64,${fileBuffer.toString('base64')}`,
       {
-        resource_type: 'image', // Use 'image' for PDFs so they can be delivered publicly
-        folder: folder,
-        // Remove extension for image resource type as Cloudinary appends it dynamically
-        public_id: `${Date.now()}_${fileName.replace(/\.[^/.]+$/, '')}`,
-        format: 'pdf',
+        resource_type: 'raw',
+        folder,
+        public_id: publicId,
         access_mode: 'public',
-      },
-      (error: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
-        if (error) {
-          logger.error('Cloudinary upload error:', error);
-          reject(new Error(`Failed to upload PDF: ${error.message}`));
-          return;
-        }
-
-        if (!result) {
-          reject(new Error('Upload failed: No result returned'));
-          return;
-        }
-
-        logger.info(`PDF uploaded successfully: ${result.public_id}`);
-
-        resolve({
-          url: result.secure_url,
-          publicId: result.public_id,
-          format: result.format,
-          bytes: result.bytes,
-          createdAt: result.created_at,
-        });
       }
     );
 
-    uploadStream.end(fileBuffer);
-  });
-}
+    logger.info(`PDF uploaded: ${result.public_id}`);
 
-/**
- * Delete a file from Cloudinary
- */
-export async function deleteFile(publicId: string): Promise<void> {
-  try {
-    const result = await cloudinary.uploader.destroy(publicId, {
-      resource_type: 'image',
-    });
-
-    if (result.result !== 'ok') {
-      throw new Error(`Failed to delete file: ${result.result}`);
-    }
-
-    logger.info(`File deleted successfully: ${publicId}`);
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+      bytes: result.bytes,
+    };
   } catch (error) {
-    logger.error('Error deleting file from Cloudinary:', error);
-    throw error;
+    logger.error('Cloudinary upload error:', error);
+    throw new Error('Failed to upload PDF to Cloudinary');
   }
 }
 
-/**
- * Get file details from Cloudinary
- */
-export async function getFileDetails(publicId: string): Promise<any> {
-  try {
-    const result = await cloudinary.api.resource(publicId, {
-      resource_type: 'image',
-    });
+export function parseCloudinaryUrl(
+  fileUrl: string
+): { publicId: string; resourceType: 'raw' | 'image' } | null {
+  if (!fileUrl.includes('res.cloudinary.com')) return null;
 
-    return result;
-  } catch (error) {
-    logger.error('Error getting file details from Cloudinary:', error);
-    throw error;
+  const match = fileUrl.match(/\/(raw|image)\/upload\/(?:v\d+\/)?(.+)$/i);
+  if (!match) return null;
+
+  let publicId = decodeURIComponent(match[2]);
+  if (publicId.endsWith('.pdf')) {
+    publicId = publicId.slice(0, -4);
   }
+
+  return {
+    publicId,
+    resourceType: match[1].toLowerCase() as 'raw' | 'image',
+  };
 }
 
 /**
- * List files in a folder
+ * Delete a PDF from Cloudinary by public ID.
  */
-export async function listFiles(folder: string = 'revisio/pdfs'): Promise<any[]> {
-  try {
-    const result = await cloudinary.api.resources({
-      resource_type: 'image',
-      type: 'upload',
-      prefix: folder,
-      max_results: 500,
-    });
+export async function deletePdf(
+  publicId: string,
+  resourceType: 'raw' | 'image' = 'raw'
+): Promise<void> {
+  const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
 
-    return result.resources;
-  } catch (error) {
-    logger.error('Error listing files from Cloudinary:', error);
-    throw error;
+  if (result.result !== 'ok' && result.result !== 'not found') {
+    throw new Error(`Failed to delete file: ${result.result}`);
   }
+
+  logger.info(`PDF deleted from Cloudinary: ${publicId}`);
+}
+
+/**
+ * Delete a PDF from Cloudinary using its delivery URL.
+ */
+export async function deletePdfFromUrl(fileUrl: string): Promise<void> {
+  const parsed = parseCloudinaryUrl(fileUrl);
+  if (!parsed) return;
+
+  await deletePdf(parsed.publicId, parsed.resourceType);
 }
