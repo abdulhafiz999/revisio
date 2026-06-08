@@ -51,7 +51,17 @@ function startServer(): void {
     logger.info(`Frontend URL: ${env.FRONTEND_URL}`);
     logger.info(`Supabase URL: ${env.SUPABASE_URL}`);
     logger.info(`Gemini API Key: ${env.GEMINI_API_KEY ? '***configured***' : 'NOT SET'}`);
+    logger.info(`Cloudinary Cloud: ${env.CLOUDINARY_CLOUD_NAME ? '***configured***' : 'NOT SET'}`);
 
+    // Validate Cloudinary configuration
+    const { validateCloudinaryConfig } = require('./config/cloudinary');
+    if (!validateCloudinaryConfig()) {
+      logger.warn('⚠️  Cloudinary configuration incomplete - file uploads will not work');
+      logger.warn('   Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to .env');
+      logger.warn('   See CLOUDINARY_SETUP.md for setup instructions');
+    } else {
+      logger.info('✅ Cloudinary configured successfully');
+    }
     // Start listening on the configured port
     const server = app.listen(env.PORT, () => {
       logger.info('='.repeat(60));

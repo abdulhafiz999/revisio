@@ -149,7 +149,7 @@ export function AiChatWidget() {
         setIsMinimized(false);
         setIsExpanded(false);
         setInput(customEvent.detail.message);
-        
+
         // Auto-focus and adjust height of input (desktop only)
         if (!isMobile) {
           setTimeout(() => {
@@ -181,15 +181,15 @@ export function AiChatWidget() {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
-      
+
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;
-      
+
       setPosition(prev => ({
         x: prev.x + deltaX,
         y: prev.y + deltaY
       }));
-      
+
       setDragStart({ x: e.clientX, y: e.clientY });
     };
 
@@ -216,7 +216,7 @@ export function AiChatWidget() {
     // Only allow dragging from the header
     const target = e.target as HTMLElement;
     if (target.closest('button')) return; // Don't drag when clicking buttons
-    
+
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
   };
@@ -345,7 +345,7 @@ export function AiChatWidget() {
           }}
         >
           {/* Header */}
-          <div 
+          <div
             className={cn(
               "flex items-center gap-3 px-4 py-3 border-b bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)] flex-shrink-0",
               isDragging ? "cursor-grabbing" : "cursor-grab"

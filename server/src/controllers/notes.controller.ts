@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { createNote, getNotes, getNoteById, updateNote, deleteNote, getPublicNoteById } from '../services/notes.service';
 import { extractText } from '../services/pdf.service';
+import { uploadPdf } from '../services/cloudinary.service';
 import { ApiSuccessResponse } from '../models/types';
 import { noteInputSchema, updateNoteSchema } from '../models/schemas';
-import { supabaseAdmin } from '../config/database';
 import { logger } from '../utils/logger';
 
 /**
@@ -82,35 +82,21 @@ export async function uploadPDFHandler(
       return;
     }
 
-    // Ensure the Supabase Storage bucket 'notes' exists and is public
-    try {
-      await supabaseAdmin.storage.createBucket('notes', {
-        public: true,
-      });
-    } catch (bucketError) {
-      // Ignore error if bucket already exists
-    }
-
-    // Upload PDF to Supabase Storage
+    // Upload PDF to Cloudinary (replaces Supabase Storage)
+    logger.info(`Uploading PDF to Cloudinary: ${file.originalname}`);
     let fileUrl: string | undefined = undefined;
-    const fileExtension = file.originalname.split('.').pop() || 'pdf';
-    const filePath = `${userId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExtension}`;
 
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from('notes')
-      .upload(filePath, file.buffer, {
-        contentType: file.mimetype,
-        upsert: true
-      });
-
-    if (uploadError) {
-      logger.error('Error uploading PDF to Supabase Storage:', uploadError);
-    } else if (uploadData) {
-      const { data: publicUrlData } = supabaseAdmin.storage
-        .from('notes')
-        .getPublicUrl(filePath);
-      
-      fileUrl = publicUrlData.publicUrl;
+    try {
+      const uploadResult = await uploadPdf(
+        file.buffer,
+        file.originalname,
+        `revisio/notes/${userId}`
+      );
+      fileUrl = uploadResult.url;
+      logger.info(`PDF uploaded successfully to Cloudinary: ${uploadResult.publicId}`);
+    } catch (uploadError) {
+      logger.error('Error uploading PDF to Cloudinary:', uploadError);
+      // Continue anyway - we still have the text
     }
 
     // Create note with extracted text and file URL

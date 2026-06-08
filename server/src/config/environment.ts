@@ -21,6 +21,11 @@ const envSchema = z.object({
     .default('10000'),
   OPENAI_API_KEY: z.string().optional().default(''),
   
+  // Cloudinary configuration
+  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME is required'),
+  CLOUDINARY_API_KEY: z.string().min(1, 'CLOUDINARY_API_KEY is required'),
+  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET is required'),
+  
   // Server configuration
   PORT: z.string().regex(/^\d+$/, 'PORT must be a number').transform(Number).default('3000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

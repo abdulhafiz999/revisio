@@ -16,6 +16,7 @@ import aiRoutes from './routes/ai.routes';
 import coursesRoutes from './routes/courses.routes';
 import topicsRoutes from './routes/topics.routes';
 import questionsRoutes from './routes/questions.routes';
+import uploadRoutes from './routes/upload.routes';
 
 /**
  * Configure and initialize Express application
@@ -35,8 +36,8 @@ export function createApp(): Application {
   app.use(cors(corsOptions));
 
   // Body parsing middleware
-  app.use(express.json({ limit: '10mb' })); // Parse JSON bodies
-  app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Parse URL-encoded bodies
+  app.use(express.json({ limit: '50mb' })); // Parse JSON bodies (increased limit)
+  app.use(express.urlencoded({ extended: true, limit: '50mb' })); // Parse URL-encoded bodies (increased limit)
 
   // Rate limiting - apply to all routes
   app.use(rateLimiter);
@@ -76,6 +77,7 @@ export function createApp(): Application {
   app.use('/api/courses', coursesRoutes);
   app.use('/api/topics', topicsRoutes);
   app.use('/api/questions', questionsRoutes);
+  app.use('/api/upload', uploadRoutes);
 
   // ============================================================================
   // Error Handling
