@@ -4,7 +4,6 @@ import StatCard from '@/components/dashboard/StatCard';
 import ProgressChart from '@/components/dashboard/ProgressChart';
 import TopicStrength from '@/components/dashboard/TopicStrength';
 import { useStudy } from '@/context/StudyContext';
-import { useAuth } from '@/context/AuthContext';
 import { Link } from 'react-router-dom';
 import { 
   BookOpen, 
@@ -22,7 +21,6 @@ import { useApi } from '@/hooks/useApi';
 
 const Dashboard: React.FC = () => {
   const { progress, weeklyActivity, loading: contextLoading } = useStudy();
-  const { user } = useAuth();
   const { data: courses, execute: fetchCourses } = useApi(apiClient.getCourses);
   const { data: weakTopics, execute: fetchWeakTopics } = useApi(apiClient.getWeakTopics);
   const { data: strongTopics, execute: fetchStrongTopics } = useApi(apiClient.getStrongTopics);
@@ -36,16 +34,6 @@ const Dashboard: React.FC = () => {
   const accuracy = progress && progress.total_attempted > 0 
     ? Math.round((progress.correct_answers / progress.total_attempted) * 100) 
     : 0;
-
-  // Extract a friendly name from email (e.g., "john.doe@example.com" -> "John")
-  const getUserName = () => {
-    if (!user?.email) return '';
-    const emailPrefix = user.email.split('@')[0];
-    const namePart = emailPrefix.split(/[._-]/)[0]; // Get first part before . _ or -
-    return namePart.charAt(0).toUpperCase() + namePart.slice(1); // Capitalize first letter
-  };
-
-  const userName = getUserName();
 
   if (contextLoading || !progress) {
     return (
@@ -67,9 +55,7 @@ const Dashboard: React.FC = () => {
       <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">
-            Welcome back{userName ? `, ${userName}` : ''}! 👋
-          </h1>
+          <h1 className="text-3xl font-bold">Welcome back! 👋</h1>
           <p className="text-muted-foreground">
             Track your progress and continue your learning journey.
           </p>
