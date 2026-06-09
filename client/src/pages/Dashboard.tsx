@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
+import { useAuth } from '@/context/AuthContext';
 import StatCard from '@/components/dashboard/StatCard';
 import ProgressChart from '@/components/dashboard/ProgressChart';
 import TopicStrength from '@/components/dashboard/TopicStrength';
@@ -16,20 +17,32 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiClient, Course, WeakTopic, StrongTopic } from '@/services/api.client';
+import { apiClient, Course, WeakTopic, StrongTopic, UserProfile } from '@/services/api.client';
 import { useApi } from '@/hooks/useApi';
 
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
   const { progress, weeklyActivity, loading: contextLoading } = useStudy();
   const { data: courses, execute: fetchCourses } = useApi(apiClient.getCourses);
   const { data: weakTopics, execute: fetchWeakTopics } = useApi(apiClient.getWeakTopics);
   const { data: strongTopics, execute: fetchStrongTopics } = useApi(apiClient.getStrongTopics);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     fetchCourses();
     fetchWeakTopics();
     fetchStrongTopics();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+    apiClient.getProfile().then(setProfile).catch(() => {});
+  }, [user]);
+
+  const welcomeName = profile?.display_name?.trim();
 
   const accuracy = progress && progress.total_attempted > 0 
     ? Math.round((progress.correct_answers / progress.total_attempted) * 100) 
@@ -55,7 +68,9 @@ const Dashboard: React.FC = () => {
       <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Welcome back! 👋</h1>
+          <h1 className="text-3xl font-bold">
+            {welcomeName ? `Welcome back, ${welcomeName}! 👋` : 'Welcome back! 👋'}
+          </h1>
           <p className="text-muted-foreground">
             Track your progress and continue your learning journey.
           </p>
