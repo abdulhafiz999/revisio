@@ -80,7 +80,7 @@ const Recommendations: React.FC = () => {
                   You've attempted <strong>{progress.total_attempted}</strong> questions with{' '}
                   <strong>{accuracy}%</strong> accuracy.
                   {progress.streak_days > 0 && (
-                    <span> You're on a <strong>{progress.streak_days}-day streak</strong> — keep it up!</span>
+                    <span> You're on a <strong>{progress.streak_days}-day streak</strong> - keep it up!</span>
                   )}
                 </p>
               </div>
