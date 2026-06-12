@@ -127,8 +127,8 @@ export function ProfileSheet({ open, onOpenChange, onSaved }: ProfileSheetProps)
         <SheetHeader>
           <SheetTitle>Your profile</SheetTitle>
           <SheetDescription>
-            Tell Revi your name and university program — Computer Science, Medicine, Law,
-            Physics, History, and more — so it acts like a personal tutor in your field.
+            Tell Revi your name and university program - Computer Science, Medicine, Law,
+            Physics, History, and more - so it acts like a personal tutor in your field.
           </SheetDescription>
         </SheetHeader>
 
