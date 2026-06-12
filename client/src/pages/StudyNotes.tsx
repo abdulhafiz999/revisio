@@ -65,6 +65,20 @@ const StudyNotes: React.FC = () => {
     setShowShareDialog(true);
   };
 
+  // Convert Cloudinary URL to an inline-viewable PDF URL.
+  // - For /image/upload/ URLs (new uploads): inject fl_inline flag so browser shows PDF inline.
+  // - For /raw/upload/ URLs (old uploads): fl_inline is NOT supported on raw resources (causes 401).
+  //   Instead, wrap with Google Docs viewer which can display any public PDF inline.
+  const getInlinePdfUrl = (url: string): string => {
+    if (!url) return url;
+    if (url.includes('/image/upload/')) {
+      // New-style upload: add fl_inline so browser displays inline instead of downloading
+      return url.replace('/image/upload/', '/image/upload/fl_inline/');
+    }
+    // Old-style raw upload: use Google Docs viewer to display inline in browser
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+  };
+
   const copyShareLink = () => {
     navigator.clipboard.writeText(shareUrl);
     toast({
@@ -372,7 +386,7 @@ const StudyNotes: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(note.file_url, '_blank')}
+                        onClick={() => window.open(getInlinePdfUrl(note.file_url!), '_blank')}
                         className="text-muted-foreground hover:text-foreground"
                       >
                         <BookOpen className="h-4 w-4 mr-2" />
@@ -508,7 +522,7 @@ const StudyNotes: React.FC = () => {
       <Dialog open={showGeneratingDialog} onOpenChange={() => { }}>
         <DialogContent className="max-w-sm" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 border-2">
               <Sparkles className="h-5 w-5 text-primary animate-spin" />
               Generating your quiz
             </DialogTitle>
