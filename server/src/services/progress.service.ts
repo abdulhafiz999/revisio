@@ -242,3 +242,120 @@ export async function getRecentActivity(userId: string) {
   }
 }
 
+export async function getWeakTopics(userId: string): Promise<any[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('attempt_history')
+      .select(`
+        is_correct,
+        question:questions (
+          topic_id,
+          topic:topics (
+            name
+          )
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (error) {
+      logger.error('Error fetching weak topics attempt history:', error);
+      throw error;
+    }
+    if (!data || data.length === 0) return [];
+
+    const topicStats: Record<string, { total: number; correct: number; name: string }> = {};
+
+    for (const attempt of data) {
+      const question = attempt.question as any;
+      if (!question || !question.topic_id) continue;
+      const topicId = question.topic_id;
+      const topicName = question.topic?.name || 'Unknown Topic';
+
+      if (!topicStats[topicId]) {
+        topicStats[topicId] = { total: 0, correct: 0, name: topicName };
+      }
+
+      topicStats[topicId].total++;
+      if (attempt.is_correct) {
+        topicStats[topicId].correct++;
+      }
+    }
+
+    return Object.entries(topicStats)
+      .map(([topicId, stats]) => {
+        const accuracy = Math.round((stats.correct / stats.total) * 100);
+        return {
+          user_id: userId,
+          topic_id: topicId,
+          topic_name: stats.name,
+          accuracy_percentage: accuracy,
+          last_attempted: new Date().toISOString(),
+        };
+      })
+      .filter((t) => t.accuracy_percentage < 60)
+      .sort((a, b) => a.accuracy_percentage - b.accuracy_percentage);
+  } catch (error) {
+    logger.error('Error in getWeakTopics service:', error);
+    throw error;
+  }
+}
+
+export async function getStrongTopics(userId: string): Promise<any[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('attempt_history')
+      .select(`
+        is_correct,
+        question:questions (
+          topic_id,
+          topic:topics (
+            name
+          )
+        )
+      `)
+      .eq('user_id', userId);
+
+    if (error) {
+      logger.error('Error fetching strong topics attempt history:', error);
+      throw error;
+    }
+    if (!data || data.length === 0) return [];
+
+    const topicStats: Record<string, { total: number; correct: number; name: string }> = {};
+
+    for (const attempt of data) {
+      const question = attempt.question as any;
+      if (!question || !question.topic_id) continue;
+      const topicId = question.topic_id;
+      const topicName = question.topic?.name || 'Unknown Topic';
+
+      if (!topicStats[topicId]) {
+        topicStats[topicId] = { total: 0, correct: 0, name: topicName };
+      }
+
+      topicStats[topicId].total++;
+      if (attempt.is_correct) {
+        topicStats[topicId].correct++;
+      }
+    }
+
+    return Object.entries(topicStats)
+      .map(([topicId, stats]) => {
+        const accuracy = Math.round((stats.correct / stats.total) * 100);
+        return {
+          user_id: userId,
+          topic_id: topicId,
+          topic_name: stats.name,
+          accuracy_percentage: accuracy,
+          last_attempted: new Date().toISOString(),
+        };
+      })
+      .filter((t) => t.accuracy_percentage >= 80)
+      .sort((a, b) => b.accuracy_percentage - a.accuracy_percentage);
+  } catch (error) {
+    logger.error('Error in getStrongTopics service:', error);
+    throw error;
+  }
+}
+
+

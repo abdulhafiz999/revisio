@@ -42,6 +42,10 @@ interface Course {
   icon: string;
   color: string;
   created_at: string;
+  total_questions?: number;
+  attempted_questions?: number;
+  correct_questions?: number;
+  accuracy_percentage?: number;
 }
 
 interface Topic {

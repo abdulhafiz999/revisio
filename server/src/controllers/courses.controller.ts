@@ -1,17 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
-import { getAllCourses, getCourseById } from '../services/courses.service';
+import { getAllCourses, getCourseById, getAllCoursesWithProgress } from '../services/courses.service';
 import { getTopicsByCourseId } from '../services/topics.service';
 import { ApiSuccessResponse } from '../models/types';
 import { NotFoundError } from '../middleware/errorHandler';
 import { AI_PRACTICE_COURSE_ID } from '../constants/ai-practice';
 
 export async function getCoursesHandler(
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const courses = await getAllCourses();
+    const userId = (req as any).user.id;
+    const courses = await getAllCoursesWithProgress(userId);
     const response: ApiSuccessResponse<typeof courses> = {
       success: true,
       data: courses,

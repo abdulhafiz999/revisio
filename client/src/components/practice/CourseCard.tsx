@@ -25,11 +25,17 @@ const iconBgStyles = {
 const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
   const color = course.color as keyof typeof colorStyles;
 
+  const total = course.total_questions || 0;
+  const attempted = course.attempted_questions || 0;
+  const accuracy = course.accuracy_percentage || 0;
+  
+  const completionPercentage = total > 0 ? Math.round((attempted / total) * 100) : 0;
+
   return (
     <Link 
       to={`/practice/${course.id}`}
       className={cn(
-        "block p-6 rounded-xl border-2 bg-gradient-to-br transition-all duration-300 hover:shadow-lg group",
+        "block p-6 rounded-xl border-2 bg-gradient-to-br transition-all duration-300 hover:shadow-lg group relative overflow-hidden",
         colorStyles[color] || colorStyles.primary
       )}
     >
@@ -50,12 +56,37 @@ const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
             </h3>
           </div>
         </div>
-        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+        
+        <div className="flex items-center gap-2">
+          {attempted > 0 && (
+            <span className={cn(
+              "px-2.5 py-1 rounded-full text-xs font-bold border shrink-0",
+              accuracy >= 80 
+                ? "bg-success/15 border-success/30 text-success" 
+                : accuracy >= 50 
+                ? "bg-warning/15 border-warning/30 text-warning" 
+                : "bg-destructive/15 border-destructive/30 text-destructive"
+            )}>
+              {accuracy}% Accuracy
+            </span>
+          )}
+          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+        </div>
       </div>
       
-      <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/50">
-        <div className="text-sm">
-          <span className="text-muted-foreground">Click to view topics and questions</span>
+      {/* Progress section */}
+      <div className="mt-5 pt-4 border-t border-border/50 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground font-medium">
+            {total > 0 ? `${attempted} of ${total} completed` : 'No questions yet'}
+          </span>
+          <span className="text-muted-foreground font-bold">{completionPercentage}%</span>
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+          <div 
+            className="h-full bg-primary rounded-full transition-all duration-500" 
+            style={{ width: `${completionPercentage}%` }}
+          />
         </div>
       </div>
     </Link>

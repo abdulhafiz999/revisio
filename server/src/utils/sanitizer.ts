@@ -7,9 +7,8 @@
  * SQL injection patterns to detect and prevent
  */
 const SQL_INJECTION_PATTERNS = [
-  /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|DECLARE)\b)/gi,
-  /(--|;|\/\*|\*\/|xp_|sp_)/gi,
-  /('|(\\')|(;)|(\-\-)|(\/\*))/gi,
+  /\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|DECLARE)\b/i,
+  /(--|;|\/\*|\*\/|xp_|sp_)/i,
 ];
 
 /**
@@ -29,15 +28,19 @@ export function containsSQLInjection(input: string): boolean {
  * using parameterized queries with Supabase client.
  */
 export function sanitizeString(input: string): string {
-  if (typeof input !== 'string') {
+  if (input === null || input === undefined) {
     return '';
   }
-  
-  // Remove null bytes
-  let sanitized = input.replace(/\0/g, '');
+  const str = String(input);
   
   // Trim whitespace
-  sanitized = sanitized.trim();
+  let sanitized = str.trim();
+  
+  // Remove null bytes
+  sanitized = sanitized.replace(/\0/g, '');
+  
+  // Escape single quotes: replace ' with ''
+  sanitized = sanitized.replace(/'/g, "''");
   
   return sanitized;
 }
@@ -46,14 +49,17 @@ export function sanitizeString(input: string): string {
  * Sanitize an object by sanitizing all string values
  */
 export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
-  const sanitized: any = {};
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  const sanitized: any = Array.isArray(obj) ? [] : {};
   
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === 'string') {
       sanitized[key] = sanitizeString(value);
     } else if (Array.isArray(value)) {
       sanitized[key] = value.map(item => 
-        typeof item === 'string' ? sanitizeString(item) : item
+        typeof item === 'string' ? sanitizeString(item) : (typeof item === 'object' && item !== null ? sanitizeObject(item) : item)
       );
     } else if (value !== null && typeof value === 'object') {
       sanitized[key] = sanitizeObject(value);
@@ -78,6 +84,17 @@ export function sanitizeEmail(email: string): string {
 }
 
 /**
+ * Check if email format is valid
+ */
+export function isValidEmail(email: string): boolean {
+  if (typeof email !== 'string') {
+    return false;
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
  * Sanitize UUID format
  */
 export function isValidUUID(uuid: string): boolean {
@@ -90,33 +107,26 @@ export function isValidUUID(uuid: string): boolean {
 }
 
 /**
- * Sanitize filename for safe storage
+ * Validate that input is safe from SQL injection
  */
-export function sanitizeFilename(filename: string): string {
-  if (typeof filename !== 'string') {
-    return '';
+export function validateSafeInput(input: string, fieldName?: string): void {
+  if (typeof input === 'string' && containsSQLInjection(input)) {
+    throw new Error(`Potential SQL injection detected${fieldName ? ` in field: ${fieldName}` : ''}`);
   }
-  
-  // Remove path traversal attempts
-  let sanitized = filename.replace(/\.\./g, '');
-  
-  // Remove special characters except dots, dashes, and underscores
-  sanitized = sanitized.replace(/[^a-zA-Z0-9._-]/g, '_');
-  
-  // Limit length
-  if (sanitized.length > 255) {
-    const ext = sanitized.split('.').pop() || '';
-    const name = sanitized.substring(0, 255 - ext.length - 1);
-    sanitized = `${name}.${ext}`;
-  }
-  
-  return sanitized;
+}
+
+/**
+ * Sanitize and validate input
+ */
+export function sanitizeAndValidate(input: string): string {
+  validateSafeInput(input);
+  return sanitizeString(input);
 }
 
 /**
  * Escape HTML special characters to prevent XSS
  */
-export function escapeHtml(text: string): string {
+export function sanitizeHTML(text: string): string {
   if (typeof text !== 'string') {
     return '';
   }
@@ -131,6 +141,43 @@ export function escapeHtml(text: string): string {
   };
   
   return text.replace(/[&<>"'/]/g, char => htmlEscapeMap[char]);
+}
+
+// Export escapeHtml for backward compatibility
+export const escapeHtml = sanitizeHTML;
+
+/**
+ * Sanitize filename for safe storage
+ */
+export function sanitizeFilename(filename: string): string {
+  if (typeof filename !== 'string' || filename.trim() === '') {
+    return 'file';
+  }
+  
+  let clean = filename;
+  
+  if (clean.includes('..')) {
+    // Directory traversal: remove all dots, slashes, and backslashes
+    clean = clean.replace(/[.\\/]/g, '');
+  } else {
+    // Normal filename: replace path separators / and \ with underscore
+    clean = clean.replace(/[\\/]/g, '_');
+    // Replace other unsafe characters with underscore
+    clean = clean.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+  
+  if (clean.trim() === '') {
+    return 'file';
+  }
+  
+  // Limit length
+  if (clean.length > 255) {
+    const ext = clean.split('.').pop() || '';
+    const name = clean.substring(0, 255 - ext.length - 1);
+    clean = `${name}.${ext}`;
+  }
+  
+  return clean;
 }
 
 /**

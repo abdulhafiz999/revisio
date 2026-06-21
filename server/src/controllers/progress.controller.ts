@@ -1,5 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { getUserProgress, getRecentActivity, getWeeklyActivity } from '../services/progress.service';
+import { 
+  getUserProgress, 
+  getRecentActivity, 
+  getWeeklyActivity, 
+  getWeakTopics, 
+  getStrongTopics 
+} from '../services/progress.service';
 import { ApiSuccessResponse } from '../models/types';
 
 /**
@@ -81,3 +87,54 @@ export async function getRecentActivityHandler(
     next(error);
   }
 }
+
+/**
+ * Get weak topics for the user
+ * GET /api/users/weak-topics
+ */
+export async function getWeakTopicsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const weakTopics = await getWeakTopics(userId);
+
+    const response: ApiSuccessResponse<typeof weakTopics> = {
+      success: true,
+      data: weakTopics,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get strong topics for the user
+ * GET /api/users/strong-topics
+ */
+export async function getStrongTopicsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const strongTopics = await getStrongTopics(userId);
+
+    const response: ApiSuccessResponse<typeof strongTopics> = {
+      success: true,
+      data: strongTopics,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+

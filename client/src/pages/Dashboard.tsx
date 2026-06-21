@@ -124,9 +124,9 @@ const Dashboard: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Continue Learning</h2>
-            <Link to="/practice">
+            <Link to="/notes">
               <Button variant="ghost" className="text-primary">
-                View all courses
+                Study Notes
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>
