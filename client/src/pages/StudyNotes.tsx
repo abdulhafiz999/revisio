@@ -56,8 +56,32 @@ const StudyNotes: React.FC = () => {
   const [practiceQuestions, setPracticeQuestions] = useState<Question[]>([]);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const [viewingPdf, setViewingPdf] = useState<string | null>(null);
   const { toast } = useToast();
   const { hasAttempted, refreshProgress } = useStudy();
+
+  // Open a Cloudinary PDF URL inline in a new tab.
+  // Problem: /raw/upload/ URLs are served by Cloudinary with Content-Disposition: attachment,
+  // so window.open() always triggers a download instead of displaying inline.
+  // Fix: fetch the file, re-wrap it as a Blob with explicit application/pdf MIME type,
+  // then open the local blob:// URL. The browser always renders blob PDF URLs inline.
+  const viewPdfInline = async (url: string, noteId: string) => {
+    try {
+      setViewingPdf(noteId);
+      const response = await fetch(url);
+      const rawBlob = await response.blob();
+      const pdfBlob = new Blob([rawBlob], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      window.open(blobUrl, '_blank');
+      // Clean up the blob URL after a short delay to free memory
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    } catch {
+      // Fallback: open the raw URL directly if fetch fails
+      window.open(url, '_blank');
+    } finally {
+      setViewingPdf(null);
+    }
+  };
 
   const handleShare = (noteId: string) => {
     const url = `${window.location.origin}/shared/note/${noteId}`;
@@ -65,18 +89,14 @@ const StudyNotes: React.FC = () => {
     setShowShareDialog(true);
   };
 
-  // Convert Cloudinary URL to an inline-viewable PDF URL.
-  // - For /image/upload/ URLs (new uploads): inject fl_inline flag so browser shows PDF inline.
-  // - For /raw/upload/ URLs (old uploads): fl_inline is NOT supported on raw resources (causes 401).
-  //   Instead, wrap with Google Docs viewer which can display any public PDF inline.
+  // For /image/upload/ URLs only: inject fl_inline so the iframe in SharedNoteView renders inline.
+  // For /raw/upload/ URLs: use viewPdfInline() instead (blob approach).
   const getInlinePdfUrl = (url: string): string => {
     if (!url) return url;
     if (url.includes('/image/upload/')) {
-      // New-style upload: add fl_inline so browser displays inline instead of downloading
       return url.replace('/image/upload/', '/image/upload/fl_inline/');
     }
-    // Old-style raw upload: use Google Docs viewer to display inline in browser
-    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+    return url;
   };
 
   const copyShareLink = () => {
@@ -386,11 +406,12 @@ const StudyNotes: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(getInlinePdfUrl(note.file_url!), '_blank')}
+                        onClick={() => viewPdfInline(note.file_url!, note.id)}
+                        disabled={viewingPdf === note.id}
                         className="text-muted-foreground hover:text-foreground"
                       >
                         <BookOpen className="h-4 w-4 mr-2" />
-                        View PDF
+                        {viewingPdf === note.id ? 'Loading...' : 'View Notes'}
                       </Button>
                     )}
                     <Button

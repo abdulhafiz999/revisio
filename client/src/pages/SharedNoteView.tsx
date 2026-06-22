@@ -9,7 +9,8 @@ import {
   Brain,
   Download,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { apiClient, StudyNote } from '@/services/api.client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,6 +21,67 @@ const SharedNoteView: React.FC = () => {
   const [note, setNote] = useState<StudyNote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [openingTab, setOpeningTab] = useState(false);
+  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+
+  // Convert Cloudinary URL to an inline-viewable PDF URL.
+  // - For /image/upload/ URLs: inject fl_inline so the browser displays the PDF inline.
+  // - For /raw/upload/ URLs: return as-is (used only for iframe src; browser renders natively).
+  const getInlinePdfUrl = (url: string): string => {
+    if (!url) return url;
+    if (url.includes('/image/upload/')) {
+      return url.replace('/image/upload/', '/image/upload/fl_inline/');
+    }
+    return url;
+  };
+
+  // Programmatic download: fetches the file as a blob and forces a .pdf filename + MIME type.
+  // This fixes the Cloudinary raw URL issue where the browser downloads the file as a
+  // generic "file" type (no extension, no MIME) because the URL has no .pdf extension.
+  const handleDownload = async (url: string, title: string) => {
+    try {
+      setDownloading(true);
+      const response = await fetch(url);
+      const blob = await response.blob();
+      // Force application/pdf so the OS always recognises it as a PDF file
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const objectUrl = URL.createObjectURL(pdfBlob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      // Sanitise the note title and append .pdf extension
+      const safeName = title.replace(/[^a-z0-9\s_-]/gi, '').trim() || 'study-note';
+      anchor.download = `${safeName}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // Fallback: open the URL directly if fetch fails (e.g. CORS)
+      window.open(url, '_blank');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // Open the PDF inline in a new browser tab.
+  // Raw Cloudinary URLs are served with Content-Disposition: attachment, which forces a
+  // download. By fetching + re-wrapping as a blob:// URL the browser opens it inline.
+  const openPdfInNewTab = async (url: string) => {
+    try {
+      setOpeningTab(true);
+      const response = await fetch(url);
+      const rawBlob = await response.blob();
+      const pdfBlob = new Blob([rawBlob], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    } catch {
+      window.open(url, '_blank');
+    } finally {
+      setOpeningTab(false);
+    }
+  };
 
   useEffect(() => {
     const fetchSharedNote = async () => {
@@ -28,6 +90,17 @@ const SharedNoteView: React.FC = () => {
         if (noteId) {
           const fetchedNote = await apiClient.getSharedNote(noteId);
           setNote(fetchedNote);
+          // Pre-fetch the PDF as a blob so the iframe renders inline (avoids download)
+          if (fetchedNote?.file_url) {
+            try {
+              const res = await fetch(fetchedNote.file_url);
+              const raw = await res.blob();
+              const pdf = new Blob([raw], { type: 'application/pdf' });
+              setIframeSrc(URL.createObjectURL(pdf));
+            } catch {
+              setIframeSrc(fetchedNote.file_url);
+            }
+          }
         }
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to load shared study notes.');
@@ -109,17 +182,27 @@ const SharedNoteView: React.FC = () => {
                 {note.file_url && (
                   <div className="space-y-3 pt-2">
                     <Button 
-                      onClick={() => window.open(note.file_url!, '_blank')} 
+                      onClick={() => handleDownload(note.file_url!, note.title)}
+                      disabled={downloading}
                       className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium border border-border"
                     >
-                      <Download className="mr-2 h-4 w-4" /> Download PDF File
+                      {downloading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparing download...</>
+                      ) : (
+                        <><Download className="mr-2 h-4 w-4" /> Download PDF File</>
+                      )}
                     </Button>
                     <Button 
-                      onClick={() => window.open(note.file_url!, '_blank')} 
+                      onClick={() => openPdfInNewTab(note.file_url!)} 
+                      disabled={openingTab}
                       variant="ghost" 
                       className="w-full text-primary hover:text-primary/80 hover:bg-primary/5"
                     >
-                      <ExternalLink className="mr-2 h-4 w-4" /> Open In New Tab
+                      {openingTab ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Opening...</>
+                      ) : (
+                        <><ExternalLink className="mr-2 h-4 w-4" /> Open In New Tab</>
+                      )}
                     </Button>
                   </div>
                 )}
@@ -156,7 +239,7 @@ const SharedNoteView: React.FC = () => {
                     </span>
                   </div>
                   <iframe 
-                    src={`${note.file_url}#toolbar=0`} 
+                    src={iframeSrc ? `${iframeSrc}#toolbar=0` : undefined}
                     className="w-full flex-1 border-none bg-muted"
                     title={note.title}
                   />
