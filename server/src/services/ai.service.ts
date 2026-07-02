@@ -266,8 +266,8 @@ function validateQuestionInputs(content: string, count: number): void {
   if (!content.trim()) {
     throw new Error('Content cannot be empty');
   }
-  if (count < 1 || count > 10) {
-    throw new Error('Count must be between 1 and 10');
+  if (count < 1 || count > 25) {
+    throw new Error('Count must be between 1 and 25');
   }
 }
 
