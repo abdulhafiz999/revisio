@@ -18,9 +18,13 @@ export async function getQuestions(filters: QuestionFilters): Promise<Question[]
   let query = supabaseAdmin
     .from('questions')
     .select('*')
-    .neq('course_id', AI_PRACTICE_COURSE_ID)
     .order('created_at', { ascending: false })
     .limit(filters.limit ?? 20);
+
+  // Only exclude AI course questions if a specific topic or course is NOT requested
+  if (!filters.courseId && !filters.topicId) {
+    query = query.neq('course_id', AI_PRACTICE_COURSE_ID);
+  }
 
   if (filters.courseId) {
     query = query.eq('course_id', filters.courseId);
@@ -76,30 +80,67 @@ function normalizeCorrectAnswer(question: GeneratedQuestion): string {
 }
 
 async function ensureAiPracticeCourseExists(): Promise<void> {
-  const { error: courseError } = await supabaseAdmin.from('courses').upsert(
-    {
-      id: AI_PRACTICE_COURSE_ID,
-      name: 'Study Notes Practice',
-      code: 'NOTES',
-      icon: '📝',
-      color: 'primary',
-    },
-    { onConflict: 'code' }
-  );
-  if (courseError) {
-    throw new Error(`Failed to ensure AI practice course: ${courseError.message}`);
-  }
+  try {
+    const { data: existingCourse } = await supabaseAdmin
+      .from('courses')
+      .select('id')
+      .eq('id', AI_PRACTICE_COURSE_ID)
+      .maybeSingle();
 
-  const { error: topicError } = await supabaseAdmin.from('topics').upsert(
-    {
-      id: AI_PRACTICE_TOPIC_ID,
-      name: 'AI Generated',
-      course_id: AI_PRACTICE_COURSE_ID,
-    },
-    { onConflict: 'id' }
-  );
-  if (topicError) {
-    throw new Error(`Failed to ensure AI practice topic: ${topicError.message}`);
+    if (!existingCourse) {
+      await supabaseAdmin.from('courses').upsert(
+        {
+          id: AI_PRACTICE_COURSE_ID,
+          name: 'Study Notes Practice',
+          code: 'NOTES',
+          icon: '📝',
+          color: 'primary',
+        },
+        { onConflict: 'id' }
+      );
+    }
+
+    const { data: existingTopic } = await supabaseAdmin
+      .from('topics')
+      .select('id')
+      .eq('id', AI_PRACTICE_TOPIC_ID)
+      .maybeSingle();
+
+    if (!existingTopic) {
+      await supabaseAdmin.from('topics').upsert(
+        {
+          id: AI_PRACTICE_TOPIC_ID,
+          name: 'AI Generated',
+          course_id: AI_PRACTICE_COURSE_ID,
+        },
+        { onConflict: 'id' }
+      );
+    }
+  } catch (err) {
+    logger.warn('Warning in ensureAiPracticeCourseExists:', err);
+  }
+}
+
+async function ensureTopicExists(topicId: string, topicName: string, courseId: string): Promise<void> {
+  try {
+    const { data: existingTopic } = await supabaseAdmin
+      .from('topics')
+      .select('id')
+      .eq('id', topicId)
+      .maybeSingle();
+
+    if (!existingTopic) {
+      await supabaseAdmin.from('topics').upsert(
+        {
+          id: topicId,
+          name: topicName,
+          course_id: courseId,
+        },
+        { onConflict: 'id' }
+      );
+    }
+  } catch (err) {
+    logger.warn('Warning in ensureTopicExists:', err);
   }
 }
 
@@ -108,13 +149,19 @@ async function ensureAiPracticeCourseExists(): Promise<void> {
  */
 export async function saveGeneratedQuestions(
   difficulty: 'easy' | 'medium' | 'hard',
-  generated: GeneratedQuestion[]
+  generated: GeneratedQuestion[],
+  noteId?: string,
+  noteTitle?: string
 ): Promise<Question[]> {
+  const topicId = noteId || AI_PRACTICE_TOPIC_ID;
+  const topicName = noteTitle || 'AI Generated';
+
   await ensureAiPracticeCourseExists();
+  await ensureTopicExists(topicId, topicName, AI_PRACTICE_COURSE_ID);
 
   const rows = generated.map((q) => ({
     course_id: AI_PRACTICE_COURSE_ID,
-    topic_id: AI_PRACTICE_TOPIC_ID,
+    topic_id: topicId,
     difficulty,
     type: 'multiple-choice' as const,
     question_text: q.question_text,

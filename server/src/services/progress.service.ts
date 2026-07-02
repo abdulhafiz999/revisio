@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/database';
 import { logger } from '../utils/logger';
+import { AI_PRACTICE_COURSE_ID } from '../constants/ai-practice';
 
 /**
  * Simple Progress Tracker Service
@@ -242,118 +243,209 @@ export async function getRecentActivity(userId: string) {
   }
 }
 
-export async function getWeakTopics(userId: string): Promise<any[]> {
+async function fetchUserTopicStats(userId: string): Promise<any[]> {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data: attempts, error: attemptsErr } = await supabaseAdmin
       .from('attempt_history')
-      .select(`
-        is_correct,
-        question:questions (
-          topic_id,
-          topic:topics (
-            name
-          )
-        )
-      `)
+      .select('question_id, is_correct')
       .eq('user_id', userId);
 
-    if (error) {
-      logger.error('Error fetching weak topics attempt history:', error);
-      throw error;
+    if (attemptsErr || !attempts || attempts.length === 0) return [];
+
+    const questionIds = Array.from(new Set(attempts.map((a) => a.question_id).filter(Boolean)));
+    if (questionIds.length === 0) return [];
+
+    const { data: questions, error: qErr } = await supabaseAdmin
+      .from('questions')
+      .select('id, topic_id, course_id')
+      .in('id', questionIds);
+
+    if (qErr || !questions) return [];
+
+    const questionMap = new Map(questions.map((q) => [q.id, q]));
+    const topicIds = Array.from(new Set(questions.map((q) => q.topic_id).filter(Boolean)));
+
+    const topicMap = new Map<string, string>();
+    if (topicIds.length > 0) {
+      const { data: topics } = await supabaseAdmin
+        .from('topics')
+        .select('id, name')
+        .in('id', topicIds);
+
+      if (topics) {
+        topics.forEach((t) => topicMap.set(t.id, t.name));
+      }
     }
-    if (!data || data.length === 0) return [];
 
     const topicStats: Record<string, { total: number; correct: number; name: string }> = {};
 
-    for (const attempt of data) {
-      const question = attempt.question as any;
-      if (!question || !question.topic_id) continue;
-      const topicId = question.topic_id;
-      const topicName = question.topic?.name || 'Unknown Topic';
+    for (const attempt of attempts) {
+      const q = questionMap.get(attempt.question_id);
+      if (!q) continue;
+      const topicId = q.topic_id || 'general';
+      let topicName = topicMap.get(topicId);
+      if (!topicName) {
+        if (topicId === 'ai-practice-topic' || topicId.includes('ai')) {
+          topicName = 'Study Notes AI';
+        } else {
+          topicName = 'General Knowledge';
+        }
+      }
 
       if (!topicStats[topicId]) {
         topicStats[topicId] = { total: 0, correct: 0, name: topicName };
       }
-
       topicStats[topicId].total++;
       if (attempt.is_correct) {
         topicStats[topicId].correct++;
       }
     }
 
-    return Object.entries(topicStats)
-      .map(([topicId, stats]) => {
-        const accuracy = Math.round((stats.correct / stats.total) * 100);
-        return {
-          user_id: userId,
-          topic_id: topicId,
-          topic_name: stats.name,
-          accuracy_percentage: accuracy,
-          last_attempted: new Date().toISOString(),
-        };
-      })
-      .filter((t) => t.accuracy_percentage < 60)
-      .sort((a, b) => a.accuracy_percentage - b.accuracy_percentage);
+    return Object.entries(topicStats).map(([topicId, stats]) => {
+      const accuracy = Math.round((stats.correct / stats.total) * 100);
+      return {
+        user_id: userId,
+        topic_id: topicId,
+        topic_name: stats.name,
+        accuracy_percentage: accuracy,
+        total_attempted: stats.total,
+        correct_answers: stats.correct,
+        last_attempted: new Date().toISOString(),
+      };
+    });
+  } catch (err) {
+    logger.error('Error in fetchUserTopicStats:', err);
+    return [];
+  }
+}
+
+export async function getWeakTopics(userId: string): Promise<any[]> {
+  const all = await fetchUserTopicStats(userId);
+  return all
+    .filter((t) => t.accuracy_percentage < 70)
+    .sort((a, b) => a.accuracy_percentage - b.accuracy_percentage);
+}
+
+export async function getStrongTopics(userId: string): Promise<any[]> {
+  const all = await fetchUserTopicStats(userId);
+  return all
+    .filter((t) => t.accuracy_percentage >= 70)
+    .sort((a, b) => b.accuracy_percentage - a.accuracy_percentage);
+}
+
+export async function getAllTopicStats(userId: string): Promise<any[]> {
+  const all = await fetchUserTopicStats(userId);
+  return all.sort((a, b) => b.total_attempted - a.total_attempted);
+}
+
+/**
+ * Fetch all AI Quizzes history for a user
+ */
+export async function getAIQuizzes(userId: string) {
+  try {
+    const { data: notes, error: notesError } = await supabaseAdmin
+      .from('study_notes')
+      .select('id, title, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (notesError) throw notesError;
+    if (!notes || notes.length === 0) return [];
+
+    const noteIds = notes.map((n) => n.id);
+
+    const { data: questions, error: questionsError } = await supabaseAdmin
+      .from('questions')
+      .select('id, topic_id, difficulty')
+      .eq('course_id', AI_PRACTICE_COURSE_ID)
+      .in('topic_id', noteIds);
+
+    if (questionsError) throw questionsError;
+    if (!questions || questions.length === 0) return [];
+
+    const questionIds = questions.map((q) => q.id);
+
+    const { data: attempts, error: attemptsError } = await supabaseAdmin
+      .from('attempt_history')
+      .select('question_id, is_correct')
+      .eq('user_id', userId)
+      .in('question_id', questionIds);
+
+    if (attemptsError) throw attemptsError;
+
+    const attemptsMap = new Map<string, { is_correct: boolean }[]>();
+    for (const a of attempts || []) {
+      if (!attemptsMap.has(a.question_id)) {
+        attemptsMap.set(a.question_id, []);
+      }
+      attemptsMap.get(a.question_id)!.push(a);
+    }
+
+    const quizzes = [];
+    for (const note of notes) {
+      const noteQuestions = questions.filter((q) => q.topic_id === note.id);
+      if (noteQuestions.length === 0) continue;
+
+      let attemptedCount = 0;
+      let correctCount = 0;
+
+      for (const q of noteQuestions) {
+        const qAttempts = attemptsMap.get(q.id);
+        if (qAttempts && qAttempts.length > 0) {
+          attemptedCount++;
+          const hasCorrect = qAttempts.some((a) => a.is_correct);
+          if (hasCorrect) correctCount++;
+        }
+      }
+
+      const scorePercentage = attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : 0;
+
+      quizzes.push({
+        note_id: note.id,
+        note_title: note.title,
+        difficulty: noteQuestions[0]?.difficulty || 'medium',
+        total_questions: noteQuestions.length,
+        attempted_questions: attemptedCount,
+        correct_answers: correctCount,
+        score_percentage: scorePercentage,
+        created_at: note.created_at,
+      });
+    }
+
+    return quizzes;
   } catch (error) {
-    logger.error('Error in getWeakTopics service:', error);
+    logger.error('Error fetching AI quizzes history:', error);
     throw error;
   }
 }
 
-export async function getStrongTopics(userId: string): Promise<any[]> {
+/**
+ * Reset all attempts for a specific AI note quiz
+ */
+export async function resetQuizAttempts(userId: string, noteId: string): Promise<void> {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data: questions, error: questionsError } = await supabaseAdmin
+      .from('questions')
+      .select('id')
+      .eq('course_id', AI_PRACTICE_COURSE_ID)
+      .eq('topic_id', noteId);
+
+    if (questionsError) throw questionsError;
+    if (!questions || questions.length === 0) return;
+
+    const questionIds = questions.map((q) => q.id);
+
+    const { error: deleteError } = await supabaseAdmin
       .from('attempt_history')
-      .select(`
-        is_correct,
-        question:questions (
-          topic_id,
-          topic:topics (
-            name
-          )
-        )
-      `)
-      .eq('user_id', userId);
+      .delete()
+      .eq('user_id', userId)
+      .in('question_id', questionIds);
 
-    if (error) {
-      logger.error('Error fetching strong topics attempt history:', error);
-      throw error;
-    }
-    if (!data || data.length === 0) return [];
+    if (deleteError) throw deleteError;
 
-    const topicStats: Record<string, { total: number; correct: number; name: string }> = {};
-
-    for (const attempt of data) {
-      const question = attempt.question as any;
-      if (!question || !question.topic_id) continue;
-      const topicId = question.topic_id;
-      const topicName = question.topic?.name || 'Unknown Topic';
-
-      if (!topicStats[topicId]) {
-        topicStats[topicId] = { total: 0, correct: 0, name: topicName };
-      }
-
-      topicStats[topicId].total++;
-      if (attempt.is_correct) {
-        topicStats[topicId].correct++;
-      }
-    }
-
-    return Object.entries(topicStats)
-      .map(([topicId, stats]) => {
-        const accuracy = Math.round((stats.correct / stats.total) * 100);
-        return {
-          user_id: userId,
-          topic_id: topicId,
-          topic_name: stats.name,
-          accuracy_percentage: accuracy,
-          last_attempted: new Date().toISOString(),
-        };
-      })
-      .filter((t) => t.accuracy_percentage >= 80)
-      .sort((a, b) => b.accuracy_percentage - a.accuracy_percentage);
+    logger.info(`Reset attempts for user ${userId} and note/quiz ${noteId}`);
   } catch (error) {
-    logger.error('Error in getStrongTopics service:', error);
+    logger.error('Error resetting quiz attempts:', error);
     throw error;
   }
 }

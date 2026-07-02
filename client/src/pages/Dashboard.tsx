@@ -3,7 +3,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/context/AuthContext';
 import StatCard from '@/components/dashboard/StatCard';
 import ProgressChart from '@/components/dashboard/ProgressChart';
-import TopicStrength from '@/components/dashboard/TopicStrength';
+
 import { useStudy } from '@/context/StudyContext';
 import { Link } from 'react-router-dom';
 import { 
@@ -17,21 +17,18 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiClient, Course, WeakTopic, StrongTopic, UserProfile } from '@/services/api.client';
+import { apiClient, Course, UserProfile } from '@/services/api.client';
 import { useApi } from '@/hooks/useApi';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { progress, weeklyActivity, loading: contextLoading } = useStudy();
   const { data: courses, execute: fetchCourses } = useApi(apiClient.getCourses);
-  const { data: weakTopics, execute: fetchWeakTopics } = useApi(apiClient.getWeakTopics);
-  const { data: strongTopics, execute: fetchStrongTopics } = useApi(apiClient.getStrongTopics);
+  const { data: weakTopics } = useApi(apiClient.getWeakTopics);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     fetchCourses();
-    fetchWeakTopics();
-    fetchStrongTopics();
   }, []);
 
   useEffect(() => {
@@ -110,14 +107,8 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <ProgressChart data={weeklyActivity} />
-          </div>
-          <TopicStrength 
-            weakTopics={weakTopics || []}
-            strongTopics={strongTopics || []}
-          />
+        <div>
+          <ProgressChart data={weeklyActivity} />
         </div>
 
         {/* Quick Actions */}

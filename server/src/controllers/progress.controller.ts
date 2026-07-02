@@ -4,7 +4,10 @@ import {
   getRecentActivity, 
   getWeeklyActivity, 
   getWeakTopics, 
-  getStrongTopics 
+  getStrongTopics,
+  getAllTopicStats,
+  getAIQuizzes,
+  resetQuizAttempts 
 } from '../services/progress.service';
 import { ApiSuccessResponse } from '../models/types';
 
@@ -129,6 +132,83 @@ export async function getStrongTopicsHandler(
     const response: ApiSuccessResponse<typeof strongTopics> = {
       success: true,
       data: strongTopics,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get all topic stats for the user
+ * GET /api/users/all-topics
+ */
+export async function getAllTopicStatsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const topics = await getAllTopicStats(userId);
+
+    const response: ApiSuccessResponse<typeof topics> = {
+      success: true,
+      data: topics,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get user AI quizzes history
+ * GET /api/users/ai-quizzes
+ */
+export async function getAIQuizzesHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const quizzes = await getAIQuizzes(userId);
+
+    const response: ApiSuccessResponse<typeof quizzes> = {
+      success: true,
+      data: quizzes,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Reset attempts for a specific AI quiz
+ * POST /api/users/ai-quizzes/reset
+ */
+export async function resetQuizAttemptsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = (req as any).user.id;
+    const { note_id } = req.body;
+
+    await resetQuizAttempts(userId, note_id);
+
+    const response: ApiSuccessResponse<null> = {
+      success: true,
+      data: null,
       timestamp: new Date().toISOString(),
     };
 

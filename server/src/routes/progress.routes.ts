@@ -5,6 +5,9 @@ import {
   getWeeklyActivityHandler,
   getWeakTopicsHandler,
   getStrongTopicsHandler,
+  getAllTopicStatsHandler,
+  getAIQuizzesHandler,
+  resetQuizAttemptsHandler,
 } from '../controllers/progress.controller';
 import { getProfileHandler, updateProfileHandler } from '../controllers/users.controller';
 import { verifyToken } from '../middleware/auth';
@@ -32,6 +35,12 @@ router.patch('/profile', verifyToken, validate(updateProfileSchema), updateProfi
 router.get('/progress', verifyToken, getUserProgressHandler);
 
 /**
+ * GET /api/users/all-topics
+ * Get all topic stats for the user
+ */
+router.get('/all-topics', verifyToken, getAllTopicStatsHandler);
+
+/**
  * GET /api/users/weak-topics
  * Get weak topics for the user
  */
@@ -54,6 +63,18 @@ router.get('/weekly-activity', verifyToken, getWeeklyActivityHandler);
  * Get recent activity
  */
 router.get('/recent-activity', verifyToken, getRecentActivityHandler);
+
+/**
+ * GET /api/users/ai-quizzes
+ * Get user AI quizzes history
+ */
+router.get('/ai-quizzes', verifyToken, getAIQuizzesHandler);
+
+/**
+ * POST /api/users/ai-quizzes/reset
+ * Reset attempts for a specific AI quiz
+ */
+router.post('/ai-quizzes/reset', verifyToken, resetQuizAttemptsHandler);
 
 export default router;
 

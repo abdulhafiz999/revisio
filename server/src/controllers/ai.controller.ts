@@ -43,7 +43,7 @@ export async function generateQuestionsHandler(
     }
 
     const generated = await generateQuestions(note.content, count, difficulty);
-    const questions = await saveGeneratedQuestions(difficulty, generated);
+    const questions = await saveGeneratedQuestions(difficulty, generated, note.id, note.title);
 
     const response: ApiSuccessResponse<typeof questions> = {
       success: true,

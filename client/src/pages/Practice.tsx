@@ -1,20 +1,21 @@
 import React, { useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import CourseCard from '@/components/practice/CourseCard';
+
 import { 
-  BookOpen, 
-  Search, 
+  BookOpen,
   Sparkles, 
   Upload, 
   FileText, 
   Brain, 
   Clock, 
   AlertCircle, 
-  ChevronRight 
+  RotateCcw,
+  Calendar,
+  Award
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { apiClient, Course, StudyNote, Question } from '@/services/api.client';
+import { apiClient, StudyNote, Question, AIQuizHistory } from '@/services/api.client';
 import { useApi } from '@/hooks/useApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -25,8 +26,7 @@ import QuestionCard from '@/components/practice/QuestionCard';
 import { cn } from '@/lib/utils';
 
 const Practice: React.FC = () => {
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [activeTab, setActiveTab] = React.useState('courses');
+  const [activeTab, setActiveTab] = React.useState('notes');
   const [notes, setNotes] = React.useState<StudyNote[]>([]);
   const [notesLoading, setNotesLoading] = React.useState(false);
   const [selectedNoteId, setSelectedNoteId] = React.useState<string | null>(null);
@@ -38,10 +38,14 @@ const Practice: React.FC = () => {
   const [practiceQuestions, setPracticeQuestions] = React.useState<Question[]>([]);
   const [isDragging, setIsDragging] = React.useState(false);
 
+  const [quizzes, setQuizzes] = React.useState<AIQuizHistory[]>([]);
+  const [quizzesLoading, setQuizzesLoading] = React.useState(false);
+  const [actionLoadingId, setActionLoadingId] = React.useState<string | null>(null);
+
   const { toast } = useToast();
   const { hasAttempted, refreshProgress } = useStudy();
 
-  const { data: courses, loading: coursesLoading, error: coursesError, execute: fetchCourses } = useApi(apiClient.getCourses);
+
 
   const fetchNotes = async (selectFirst = false) => {
     try {
@@ -58,15 +62,79 @@ const Practice: React.FC = () => {
     }
   };
 
+  const fetchQuizzes = async () => {
+    try {
+      setQuizzesLoading(true);
+      const data = await apiClient.getAIQuizzes();
+      setQuizzes(data);
+    } catch (err) {
+      console.error('Failed to load quiz history:', err);
+    } finally {
+      setQuizzesLoading(false);
+    }
+  };
+
+  const handleReviewQuiz = async (noteId: string) => {
+    try {
+      setActionLoadingId(noteId + '-review');
+      const questions = await apiClient.getQuestions({ topicId: noteId });
+      if (questions && questions.length > 0) {
+        setPracticeQuestions(questions);
+        setShowQuizDialog(true);
+      } else {
+        toast({
+          title: 'Error loading questions',
+          description: 'No questions found for this quiz.',
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load questions for review:', err);
+      toast({
+        title: 'Error loading questions',
+        description: 'Failed to load questions. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRetakeQuiz = async (noteId: string) => {
+    try {
+      setActionLoadingId(noteId + '-retake');
+      await apiClient.resetQuizAttempts(noteId);
+      refreshProgress();
+      const questions = await apiClient.getQuestions({ topicId: noteId });
+      if (questions && questions.length > 0) {
+        setPracticeQuestions(questions);
+        setShowQuizDialog(true);
+        await fetchQuizzes();
+      } else {
+        toast({
+          title: 'Error loading questions',
+          description: 'No questions found for this quiz.',
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to retake quiz:', err);
+      toast({
+        title: 'Failed to reset quiz',
+        description: 'Could not reset attempts. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   useEffect(() => {
-    fetchCourses();
     fetchNotes(true);
+    fetchQuizzes();
   }, []);
 
-  const filteredCourses = (courses || []).filter(course =>
-    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
 
   const handleFileUpload = async (file: File) => {
     try {
@@ -175,64 +243,19 @@ const Practice: React.FC = () => {
         </div>
 
         {/* Tab System */}
-        <Tabs defaultValue="courses" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs defaultValue="notes" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 max-w-md bg-muted/80 p-1 rounded-xl">
-            <TabsTrigger value="courses" className="rounded-lg py-2.5 font-semibold text-sm transition-all flex items-center justify-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              Course Questions
-            </TabsTrigger>
             <TabsTrigger value="notes" className="rounded-lg py-2.5 font-semibold text-sm transition-all flex items-center justify-center gap-2">
               <Sparkles className="h-4 w-4" />
               AI Notes Quizzes
             </TabsTrigger>
+            <TabsTrigger value="history" className="rounded-lg py-2.5 font-semibold text-sm transition-all flex items-center justify-center gap-2">
+              <Clock className="h-4 w-4" />
+              Quiz History
+            </TabsTrigger>
           </TabsList>
 
-          {/* Courses Tab Content */}
-          <TabsContent value="courses" className="space-y-6 outline-none">
-            {/* Search and learning banner */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-              <div className="relative w-full md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search courses..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 flex-1 md:flex-initial text-center md:text-left">
-                <p className="text-xs">
-                  📚 <strong>Learning Mode Active:</strong> You must attempt each question before viewing explanations.
-                </p>
-              </div>
-            </div>
 
-            {/* Course Grid */}
-            {coursesLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} className="h-48 rounded-xl" />
-                ))}
-              </div>
-            ) : coursesError ? (
-              <div className="text-center py-12">
-                <p className="text-destructive">{coursesError}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredCourses.map(course => (
-                  <CourseCard key={course.id} course={course} />
-                ))}
-              </div>
-            )}
-
-            {!coursesLoading && filteredCourses.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No courses found matching "{searchTerm}"</p>
-              </div>
-            )}
-          </TabsContent>
 
           {/* AI Notes Quizzes Tab Content */}
           <TabsContent value="notes" className="space-y-6 outline-none">
@@ -441,6 +464,125 @@ const Practice: React.FC = () => {
               </div>
             )}
           </TabsContent>
+
+          {/* Quiz History Tab Content */}
+          <TabsContent value="history" className="space-y-6 outline-none">
+            {quizzesLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-48 rounded-xl animate-pulse" />
+                ))}
+              </div>
+            ) : quizzes.length === 0 ? (
+              <div className="border rounded-2xl p-16 text-center text-muted-foreground bg-card/40 backdrop-blur-md flex flex-col items-center justify-center min-h-[300px]">
+                <Clock className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                <h3 className="font-bold text-lg text-foreground mb-1">No Quiz History Yet</h3>
+                <p className="text-sm max-w-md mx-auto">
+                  Quizzes you generate from study notes will appear here. Go to the <span className="text-primary font-semibold cursor-pointer" onClick={() => setActiveTab('notes')}>AI Notes Quizzes</span> tab to get started!
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {quizzes.map((quiz) => {
+                  const isCompleted = quiz.attempted_questions === quiz.total_questions;
+                  const isActionLoading = actionLoadingId !== null;
+                  const isReviewLoading = actionLoadingId === `${quiz.note_id}-review`;
+                  const isRetakeLoading = actionLoadingId === `${quiz.note_id}-retake`;
+                  
+                  // Score color mapping
+                  let scoreColor = "text-muted-foreground bg-muted";
+                  if (quiz.attempted_questions > 0) {
+                    if (quiz.score_percentage >= 80) scoreColor = "text-success bg-success/10 border border-success/20";
+                    else if (quiz.score_percentage >= 50) scoreColor = "text-warning bg-warning/10 border border-warning/20";
+                    else scoreColor = "text-destructive bg-destructive/10 border border-destructive/20";
+                  }
+
+                  return (
+                    <div 
+                      key={quiz.note_id} 
+                      className="p-5 rounded-2xl border bg-card/60 backdrop-blur-md shadow-sm hover:shadow-md hover:border-primary/30 transition-all flex flex-col justify-between h-[230px]"
+                    >
+                      <div className="space-y-3 min-w-0">
+                        {/* Title & badge */}
+                        <div className="flex items-start justify-between gap-3">
+                          <h4 className="font-bold text-base text-foreground truncate flex-1 leading-snug">
+                            {quiz.note_title}
+                          </h4>
+                          <span className={cn(
+                            "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                            isCompleted ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
+                          )}>
+                            {isCompleted ? "Completed" : "In Progress"}
+                          </span>
+                        </div>
+
+                        {/* Date and difficulty */}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            {new Date(quiz.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                          </div>
+                          <div className="flex items-center gap-1 font-semibold uppercase tracking-wider text-[10px]">
+                            <span className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              quiz.difficulty === 'easy' ? "bg-success" : quiz.difficulty === 'medium' ? "bg-warning" : "bg-destructive"
+                            )} />
+                            {quiz.difficulty}
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="space-y-1.5 pt-2">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-muted-foreground">Progress</span>
+                            <span className="text-foreground">
+                              {quiz.attempted_questions}/{quiz.total_questions} Questions
+                            </span>
+                          </div>
+                          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-primary rounded-full transition-all duration-300"
+                              style={{ width: `${(quiz.attempted_questions / quiz.total_questions) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Score and actions */}
+                      <div className="flex items-center justify-between pt-4 border-t gap-3">
+                        <div className={cn("px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold text-sm", scoreColor)}>
+                          <Award className="h-4 w-4 shrink-0" />
+                          {quiz.attempted_questions > 0 ? `${quiz.score_percentage}%` : "— %"}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReviewQuiz(quiz.note_id)}
+                            disabled={isActionLoading}
+                            className="text-xs h-9 rounded-lg"
+                          >
+                            {isReviewLoading ? "Loading..." : "Review"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRetakeQuiz(quiz.note_id)}
+                            disabled={isActionLoading}
+                            className="text-xs h-9 rounded-lg gap-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                          >
+                            <RotateCcw className={cn("h-3 w-3", isRetakeLoading && "animate-spin")} />
+                            {isRetakeLoading ? "Reset..." : "Retake"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -452,11 +594,11 @@ const Practice: React.FC = () => {
               <Sparkles className="h-5 w-5 text-primary animate-spin" />
               Generating your quiz
             </DialogTitle>
-            <DialogDescription className="space-y-2 pt-2">
-              <p>AI is reading your notes and building {questionCount} questions.</p>
-              <p className="text-xs">
+            <DialogDescription className="space-y-2 pt-2 text-muted-foreground text-sm">
+              <div>AI is reading your notes and building {questionCount} questions.</div>
+              <div className="text-xs">
                 This usually takes 5–10 seconds. Larger notes or 20+ questions may take a bit longer.
-              </p>
+              </div>
             </DialogDescription>
           </DialogHeader>
         </DialogContent>
@@ -469,6 +611,7 @@ const Practice: React.FC = () => {
           setShowQuizDialog(open);
           if (!open) {
             refreshProgress();
+            fetchQuizzes();
           }
         }}
       >

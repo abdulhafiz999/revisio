@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { StudyProvider } from "@/context/StudyContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -16,7 +16,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Practice from "./pages/Practice";
 import CourseQuestions from "./pages/CourseQuestions";
 import StudyNotes from "./pages/StudyNotes";
-import Recommendations from "./pages/Recommendations";
+import Analytics from "./pages/Analytics";
 import SharedNoteView from "./pages/SharedNoteView";
 import NotFound from "./pages/NotFound";
 
@@ -45,7 +45,8 @@ const App = () => (
               <Route path="/practice" element={<ProtectedRoute><Practice /></ProtectedRoute>} />
               <Route path="/practice/:courseId" element={<ProtectedRoute><CourseQuestions /></ProtectedRoute>} />
               <Route path="/notes" element={<ProtectedRoute><StudyNotes /></ProtectedRoute>} />
-              <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+              <Route path="/recommendations" element={<Navigate to="/analytics" replace />} />
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

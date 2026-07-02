@@ -4,7 +4,7 @@ import {
   LayoutDashboard, 
   BookOpen, 
   FileText, 
-  Lightbulb,
+  BarChart3,
   LogOut,
   UserRound,
 } from 'lucide-react';
@@ -26,7 +26,7 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/notes', label: 'Study Notes', icon: FileText },
   { path: '/practice', label: 'Practice', icon: BookOpen },
-  { path: '/recommendations', label: 'AI Recommendations', icon: Lightbulb },
+  { path: '/analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {

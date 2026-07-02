@@ -125,6 +125,27 @@ interface StrongTopic {
   last_attempted: string;
 }
 
+export interface TopicStat {
+  user_id: string;
+  topic_id: string;
+  topic_name: string;
+  accuracy_percentage: number;
+  total_attempted: number;
+  correct_answers: number;
+  last_attempted: string;
+}
+
+export interface AIQuizHistory {
+  note_id: string;
+  note_title: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  total_questions: number;
+  attempted_questions: number;
+  correct_answers: number;
+  score_percentage: number;
+  created_at: string;
+}
+
 interface Attempt {
   id: string;
   user_id: string;
@@ -484,6 +505,11 @@ class ApiClient {
     return response.data.data;
   }
 
+  async getAllTopicStats(): Promise<TopicStat[]> {
+    const response = await axiosInstance.get<ApiSuccessResponse<TopicStat[]>>('/api/users/all-topics');
+    return response.data.data;
+  }
+
   async getRecentActivity(): Promise<Attempt[]> {
     const response = await axiosInstance.get<ApiSuccessResponse<Attempt[]>>('/api/users/recent-activity');
     return response.data.data;
@@ -494,6 +520,15 @@ class ApiClient {
       '/api/users/weekly-activity'
     );
     return response.data.data;
+  }
+
+  async getAIQuizzes(): Promise<AIQuizHistory[]> {
+    const response = await axiosInstance.get<ApiSuccessResponse<AIQuizHistory[]>>('/api/users/ai-quizzes');
+    return response.data.data;
+  }
+
+  async resetQuizAttempts(noteId: string): Promise<void> {
+    await axiosInstance.post('/api/users/ai-quizzes/reset', { note_id: noteId });
   }
 
   // ==========================================================================
@@ -675,6 +710,7 @@ export type {
   UserProgress,
   WeakTopic,
   StrongTopic,
+  TopicStat,
   Attempt,
   WeeklyActivityDay,
   StudyNote,
@@ -687,4 +723,5 @@ export type {
   Recommendation,
   AuthResponse,
   Session,
+  AIQuizHistory,
 };
