@@ -66,7 +66,7 @@ const Dashboard: React.FC = () => {
         {/* Header */}
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">
-            {welcomeName ? `Welcome back, ${welcomeName}! 👋` : 'Welcome back! 👋'}
+            {welcomeName ? `Welcome back, ${welcomeName}! ` : 'Welcome back!'}
           </h1>
           <p className="text-muted-foreground">
             Track your progress and continue your learning journey.
