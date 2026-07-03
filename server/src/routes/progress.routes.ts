@@ -8,6 +8,7 @@ import {
   getAllTopicStatsHandler,
   getAIQuizzesHandler,
   resetQuizAttemptsHandler,
+  deleteQuizHandler,
 } from '../controllers/progress.controller';
 import { getProfileHandler, updateProfileHandler } from '../controllers/users.controller';
 import { verifyToken } from '../middleware/auth';
@@ -75,6 +76,12 @@ router.get('/ai-quizzes', verifyToken, getAIQuizzesHandler);
  * Reset attempts for a specific AI quiz
  */
 router.post('/ai-quizzes/reset', verifyToken, resetQuizAttemptsHandler);
+
+/**
+ * DELETE /api/users/ai-quizzes/:noteId
+ * Delete an AI quiz and all its questions/attempts
+ */
+router.delete('/ai-quizzes/:noteId', verifyToken, deleteQuizHandler);
 
 export default router;
 

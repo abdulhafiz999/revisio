@@ -11,7 +11,8 @@ import {
   AlertCircle, 
   RotateCcw,
   Calendar,
-  Award
+  Award,
+  Trash2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,8 @@ const Practice: React.FC = () => {
   const [quizzes, setQuizzes] = React.useState<AIQuizHistory[]>([]);
   const [quizzesLoading, setQuizzesLoading] = React.useState(false);
   const [actionLoadingId, setActionLoadingId] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
 
   const { toast } = useToast();
   const { hasAttempted, refreshProgress } = useStudy();
@@ -126,6 +129,27 @@ const Practice: React.FC = () => {
       });
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const handleDeleteQuiz = async (noteId: string) => {
+    try {
+      setDeletingId(noteId);
+      await apiClient.deleteQuiz(noteId);
+      setQuizzes((prev) => prev.filter((q) => q.note_id !== noteId));
+      setConfirmDeleteId(null);
+      toast({
+        title: 'Quiz deleted',
+        description: 'The quiz and all its questions have been removed.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Delete failed',
+        description: 'Could not delete the quiz. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -549,33 +573,70 @@ const Practice: React.FC = () => {
                       </div>
 
                       {/* Score and actions */}
-                      <div className="flex items-center justify-between pt-4 border-t gap-3">
-                        <div className={cn("px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold text-sm", scoreColor)}>
-                          <Award className="h-4 w-4 shrink-0" />
-                          {quiz.attempted_questions > 0 ? `${quiz.score_percentage}%` : "— %"}
-                        </div>
+                      <div className="flex items-center justify-between pt-4 border-t gap-3 min-h-[52px]">
+                        {confirmDeleteId === quiz.note_id ? (
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-xs font-semibold text-destructive">Confirm delete?</span>
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="text-xs h-8 px-2.5 rounded-lg font-bold"
+                                onClick={() => handleDeleteQuiz(quiz.note_id)}
+                                disabled={deletingId === quiz.note_id}
+                              >
+                                {deletingId === quiz.note_id ? "Deleting..." : "Yes, Delete"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs h-8 px-2.5 rounded-lg"
+                                onClick={() => setConfirmDeleteId(null)}
+                                disabled={deletingId === quiz.note_id}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className={cn("px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold text-sm", scoreColor)}>
+                              <Award className="h-4 w-4 shrink-0" />
+                              {quiz.attempted_questions > 0 ? `${quiz.score_percentage}%` : "— %"}
+                            </div>
 
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleReviewQuiz(quiz.note_id)}
-                            disabled={isActionLoading}
-                            className="text-xs h-9 rounded-lg"
-                          >
-                            {isReviewLoading ? "Loading..." : "Review"}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRetakeQuiz(quiz.note_id)}
-                            disabled={isActionLoading}
-                            className="text-xs h-9 rounded-lg gap-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-                          >
-                            <RotateCcw className={cn("h-3 w-3", isRetakeLoading && "animate-spin")} />
-                            {isRetakeLoading ? "Reset..." : "Retake"}
-                          </Button>
-                        </div>
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleReviewQuiz(quiz.note_id)}
+                                disabled={isActionLoading}
+                                className="text-xs h-9 rounded-lg"
+                              >
+                                {isReviewLoading ? "Loading..." : "Review"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRetakeQuiz(quiz.note_id)}
+                                disabled={isActionLoading}
+                                className="text-xs h-9 rounded-lg gap-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                              >
+                                <RotateCcw className={cn("h-3 w-3", isRetakeLoading && "animate-spin")} />
+                                {isRetakeLoading ? "Reset..." : "Retake"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setConfirmDeleteId(quiz.note_id)}
+                                disabled={isActionLoading}
+                                className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30 rounded-lg shrink-0"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   );

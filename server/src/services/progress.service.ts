@@ -450,4 +450,24 @@ export async function resetQuizAttempts(userId: string, noteId: string): Promise
   }
 }
 
+/**
+ * Delete an AI quiz (questions + attempts) for a specific note
+ * Deleting the topic cascades to its questions and their attempt_history rows
+ */
+export async function deleteQuiz(noteId: string): Promise<void> {
+  try {
+    // Cascade: topic → questions → attempt_history
+    const { error } = await supabaseAdmin
+      .from('topics')
+      .delete()
+      .eq('id', noteId)
+      .eq('course_id', AI_PRACTICE_COURSE_ID);
 
+    if (error) throw error;
+
+    logger.info(`Deleted AI quiz (topic) for note ${noteId}`);
+  } catch (error) {
+    logger.error('Error deleting quiz:', error);
+    throw error;
+  }
+}

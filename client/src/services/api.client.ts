@@ -531,6 +531,10 @@ class ApiClient {
     await axiosInstance.post('/api/users/ai-quizzes/reset', { note_id: noteId });
   }
 
+  async deleteQuiz(noteId: string): Promise<void> {
+    await axiosInstance.delete(`/api/users/ai-quizzes/${noteId}`);
+  }
+
   // ==========================================================================
   // Study Notes Methods
   // ==========================================================================

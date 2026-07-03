@@ -7,7 +7,8 @@ import {
   getStrongTopics,
   getAllTopicStats,
   getAIQuizzes,
-  resetQuizAttempts 
+  resetQuizAttempts,
+  deleteQuiz 
 } from '../services/progress.service';
 import { ApiSuccessResponse } from '../models/types';
 
@@ -218,3 +219,28 @@ export async function resetQuizAttemptsHandler(
   }
 }
 
+/**
+ * Delete an AI quiz and all its questions/attempts
+ * DELETE /api/users/ai-quizzes/:noteId
+ */
+export async function deleteQuizHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { noteId } = req.params;
+
+    await deleteQuiz(noteId);
+
+    const response: ApiSuccessResponse<null> = {
+      success: true,
+      data: null,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+}
