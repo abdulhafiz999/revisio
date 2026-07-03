@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, type GenerationConfig } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType, type GenerationConfig } from '@google/generative-ai';
 import { env } from '../config/environment';
 import { logger } from '../utils/logger';
 import { GeneratedQuestion, UserProfile } from '../models/types';
@@ -154,6 +154,34 @@ ${content}
 
 Return a JSON array only:
 [{"question_text":"...","options":["...","...","...","..."],"correct_answer":"...","explanation":"..."}]`;
+
+const QUESTIONS_RESPONSE_SCHEMA = {
+  type: SchemaType.ARRAY,
+  description: "A list of practice multiple-choice questions.",
+  items: {
+    type: SchemaType.OBJECT,
+    properties: {
+      question_text: {
+        type: SchemaType.STRING,
+        description: "The text of the practice question."
+      },
+      options: {
+        type: SchemaType.ARRAY,
+        items: { type: SchemaType.STRING },
+        description: "Exactly four multiple-choice options."
+      },
+      correct_answer: {
+        type: SchemaType.STRING,
+        description: "The correct answer, which must match exactly one of the options."
+      },
+      explanation: {
+        type: SchemaType.STRING,
+        description: "A brief, one-sentence explanation of why the correct answer is correct."
+      }
+    },
+    required: ["question_text", "options", "correct_answer", "explanation"]
+  }
+};
 
 const buildSummarizePrompt = (content: string): string =>
   `Summarize this study material in 3-5 concise bullet points. Focus on the main concepts and key takeaways:
@@ -365,6 +393,7 @@ async function generateBatch(
     buildQuestionPrompt(count, difficulty, content),
     {
       responseMimeType: 'application/json',
+      responseSchema: QUESTIONS_RESPONSE_SCHEMA,
       temperature: 0.5,
       maxOutputTokens: Math.min(8192, count * 400 + 256),
     },

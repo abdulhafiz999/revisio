@@ -22,10 +22,20 @@ vi.mock('@google/generative-ai', () => {
     generateContent: mockGenerateContent,
   }));
 
+  const SchemaType = {
+    ARRAY: 'ARRAY',
+    OBJECT: 'OBJECT',
+    STRING: 'STRING',
+    INTEGER: 'INTEGER',
+    NUMBER: 'NUMBER',
+    BOOLEAN: 'BOOLEAN',
+  };
+
   return {
     GoogleGenerativeAI: vi.fn().mockImplementation(() => ({
       getGenerativeModel: mockGetGenerativeModel,
     })),
+    SchemaType,
   };
 });
 
