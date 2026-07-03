@@ -268,7 +268,7 @@ const Practice: React.FC = () => {
 
         {/* Tab System */}
         <Tabs defaultValue="notes" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md bg-muted/80 p-1 rounded-xl">
+          <TabsList className="grid w-full grid-cols-2 max-w-md bg-muted/80 p-1 rounded-xl h-auto">
             <TabsTrigger value="notes" className="rounded-lg py-2.5 font-semibold text-sm transition-all flex items-center justify-center gap-2">
               <Sparkles className="h-4 w-4" />
               AI Notes Quizzes
