@@ -133,12 +133,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </div>
           
           {/* Reminder */}
-          <div className="rounded-lg bg-muted p-3">
+          {/* <div className="rounded-lg bg-muted p-3">
             <p className="text-xs text-muted-foreground">
               🎯 Remember: This tool is for <strong>learning</strong>, not shortcuts. 
               Always attempt questions before viewing explanations!
             </p>
-          </div>
+          </div> */}
         </div>
       </aside>
 
