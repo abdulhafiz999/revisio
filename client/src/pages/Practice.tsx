@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 
 import { 
@@ -12,7 +13,8 @@ import {
   RotateCcw,
   Calendar,
   Award,
-  Trash2
+  Trash2,
+  CheckCircle2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -27,7 +29,8 @@ import QuestionCard from '@/components/practice/QuestionCard';
 import { cn } from '@/lib/utils';
 
 const Practice: React.FC = () => {
-  const [activeTab, setActiveTab] = React.useState('notes');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = React.useState<string>(searchParams.get('tab') ?? 'notes');
   const [notes, setNotes] = React.useState<StudyNote[]>([]);
   const [notesLoading, setNotesLoading] = React.useState(false);
   const [selectedNoteId, setSelectedNoteId] = React.useState<string | null>(null);
@@ -45,8 +48,17 @@ const Practice: React.FC = () => {
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
 
+  // Bulk quiz submission state
+  const [localAnswers, setLocalAnswers] = React.useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = React.useState(false);
+  const [score, setScore] = React.useState<{ correct: number; total: number } | null>(null);
+  const [submittingAll, setSubmittingAll] = React.useState(false);
+  const [isReviewMode, setIsReviewMode] = React.useState(false);
+  const [generationProgress, setGenerationProgress] = React.useState(0);
+  const [showLoadingDialog, setShowLoadingDialog] = React.useState(false);
+
   const { toast } = useToast();
-  const { hasAttempted, refreshProgress } = useStudy();
+  const { refreshProgress } = useStudy();
 
 
 
@@ -82,6 +94,7 @@ const Practice: React.FC = () => {
       setActionLoadingId(noteId + '-review');
       const questions = await apiClient.getQuestions({ topicId: noteId });
       if (questions && questions.length > 0) {
+        setIsReviewMode(true);
         setPracticeQuestions(questions);
         setShowQuizDialog(true);
       } else {
@@ -110,6 +123,7 @@ const Practice: React.FC = () => {
       refreshProgress();
       const questions = await apiClient.getQuestions({ topicId: noteId });
       if (questions && questions.length > 0) {
+        setIsReviewMode(false);
         setPracticeQuestions(questions);
         setShowQuizDialog(true);
         await fetchQuizzes();
@@ -224,13 +238,31 @@ const Practice: React.FC = () => {
 
   const handleGenerateQuiz = async () => {
     if (!selectedNoteId) return;
+    setGenerating(true);
+    setShowLoadingDialog(true);
+    setGenerationProgress(0);
+
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      // Exponential decay toward 95%
+      const progress = Math.min(95, Math.round(95 * (1 - Math.pow(Math.E, -elapsed / 4500))));
+      setGenerationProgress(progress);
+    }, 150);
+
     try {
-      setGenerating(true);
       const result = await apiClient.generateQuestions(selectedNoteId, questionCount, difficulty);
+      clearInterval(interval);
       if (result && result.length > 0) {
-        setPracticeQuestions(result);
-        setShowQuizDialog(true);
+        setGenerationProgress(100);
+        setTimeout(() => {
+          setIsReviewMode(false);
+          setPracticeQuestions(result);
+          setShowQuizDialog(true);
+          setShowLoadingDialog(false);
+        }, 600);
       } else {
+        setShowLoadingDialog(false);
         toast({
           title: 'Failed to generate questions',
           description: 'AI did not return any questions. Please try again or try another note.',
@@ -238,6 +270,8 @@ const Practice: React.FC = () => {
         });
       }
     } catch (err: any) {
+      clearInterval(interval);
+      setShowLoadingDialog(false);
       toast({
         title: 'Generation failed',
         description: err.response?.data?.error || 'Could not generate questions. Please try again.',
@@ -245,6 +279,45 @@ const Practice: React.FC = () => {
       });
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // Reset bulk-submit state whenever a fresh set of questions loads (skip in review mode)
+  React.useEffect(() => {
+    if (practiceQuestions.length > 0 && !isReviewMode) {
+      setLocalAnswers({});
+      setSubmitted(false);
+      setScore(null);
+    }
+  }, [practiceQuestions]);
+
+  const handleSubmitAll = async () => {
+    if (Object.keys(localAnswers).length < practiceQuestions.length || submittingAll) return;
+    setSubmittingAll(true);
+    let correct = 0;
+    const startTime = Date.now();
+    try {
+      for (const question of practiceQuestions) {
+        const answer = localAnswers[question.id];
+        if (answer) {
+          try {
+            const result = await apiClient.submitAnswer({
+              question_id: question.id,
+              student_answer: answer,
+              time_spent_seconds: Math.round((Date.now() - startTime) / 1000),
+            });
+            if (result.is_correct) correct++;
+          } catch {
+            // continue submitting the rest even if one fails
+          }
+        }
+      }
+      setScore({ correct, total: practiceQuestions.length });
+      setSubmitted(true);
+      await refreshProgress();
+      await fetchQuizzes();
+    } finally {
+      setSubmittingAll(false);
     }
   };
 
@@ -524,7 +597,7 @@ const Practice: React.FC = () => {
                   return (
                     <div 
                       key={quiz.note_id} 
-                      className="p-5 rounded-2xl border bg-card/60 backdrop-blur-md shadow-sm hover:shadow-md hover:border-primary/30 transition-all flex flex-col justify-between h-[230px]"
+                      className="p-5 rounded-2xl border bg-card/60 backdrop-blur-md shadow-sm hover:shadow-md hover:border-primary/30 transition-all flex flex-col justify-between"
                     >
                       <div className="space-y-3 min-w-0">
                         {/* Title & badge */}
@@ -552,22 +625,6 @@ const Practice: React.FC = () => {
                               quiz.difficulty === 'easy' ? "bg-success" : quiz.difficulty === 'medium' ? "bg-warning" : "bg-destructive"
                             )} />
                             {quiz.difficulty}
-                          </div>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="space-y-1.5 pt-2">
-                          <div className="flex items-center justify-between text-xs font-semibold">
-                            <span className="text-muted-foreground">Progress</span>
-                            <span className="text-foreground">
-                              {quiz.attempted_questions}/{quiz.total_questions} Questions
-                            </span>
-                          </div>
-                          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-primary rounded-full transition-all duration-300"
-                              style={{ width: `${(quiz.attempted_questions / quiz.total_questions) * 100}%` }}
-                            />
                           </div>
                         </div>
                       </div>
@@ -647,21 +704,41 @@ const Practice: React.FC = () => {
         </Tabs>
       </div>
 
-      {/* Generating Dialog Overlay */}
-      <Dialog open={generating} onOpenChange={() => { }}>
-        <DialogContent className="max-w-sm" onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-bold">
-              <Sparkles className="h-5 w-5 text-primary animate-spin" />
-              Generating your quiz
-            </DialogTitle>
-            <DialogDescription className="space-y-2 pt-2 text-muted-foreground text-sm">
-              <div>AI is reading your notes and building {questionCount} questions.</div>
-              <div className="text-xs">
-                This usually takes 5–10 seconds. Larger notes or 20+ questions may take a bit longer.
-              </div>
-            </DialogDescription>
-          </DialogHeader>
+      {/* Generating Dialog Overlay with Dynamic Progress Bar */}
+      <Dialog open={showLoadingDialog} onOpenChange={() => { }}>
+        <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl flex flex-col gap-5" onPointerDownOutside={(e) => e.preventDefault()}>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-primary/10 rounded-xl text-primary animate-pulse">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg text-foreground">Generating Your Quiz</h3>
+              <p className="text-xs text-muted-foreground">AI is reading your materials and building {questionCount} questions...</p>
+            </div>
+          </div>
+          
+          <div className="space-y-2 mt-2">
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-primary font-medium animate-pulse">
+                {generationProgress < 20 ? "Scanning study notes..." :
+                 generationProgress < 45 ? "Extracting key concepts..." :
+                 generationProgress < 70 ? "Generating practice questions..." :
+                 generationProgress < 90 ? "Formulating answer options..." :
+                 generationProgress < 100 ? "Polishing explanations..." :
+                 "Popping quiz out!"}
+              </span>
+              <span className="text-muted-foreground font-mono">{generationProgress}%</span>
+            </div>
+            <div className="w-full h-3 bg-muted rounded-full overflow-hidden relative">
+              <div 
+                className="h-full bg-gradient-primary rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${generationProgress}%` }}
+              />
+            </div>
+          </div>
+          <div className="text-[11px] text-muted-foreground/80 leading-relaxed italic bg-muted/40 p-3 rounded-lg border border-border/40 text-center">
+            &quot;Every incorrect answer is a custom learning path generated just for you. Take your time, think through them!&quot;
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -684,7 +761,9 @@ const Practice: React.FC = () => {
             </DialogTitle>
             <div className="flex items-center justify-between gap-3">
               <DialogDescription className="text-left flex-1 min-w-0 m-0">
-                {practiceQuestions.length} {difficulty} questions — select an answer and submit before viewing explanations.
+                {isReviewMode
+                  ? `Reviewing ${practiceQuestions.length} ${difficulty} questions — your previous answers are shown below.`
+                  : `${practiceQuestions.length} ${difficulty} questions — select your answers then hit "Submit All" to see your score.`}
               </DialogDescription>
               <Button
                 type="button"
@@ -703,26 +782,103 @@ const Practice: React.FC = () => {
           <div className="overflow-y-auto px-6 py-4">
             <div className="space-y-6">
               {practiceQuestions.map((question, index) => (
-                <QuestionCard key={question.id} question={question} index={index} />
+                <QuestionCard
+                  key={question.id}
+                  question={question}
+                  index={index}
+                  bulkMode={!isReviewMode && !submitted}
+                  externalAnswer={!isReviewMode ? (localAnswers[question.id] ?? null) : null}
+                  onAnswerSelect={(qId, answer) =>
+                    setLocalAnswers((prev) => ({ ...prev, [qId]: answer }))
+                  }
+                  revealed={!isReviewMode && submitted}
+                />
               ))}
             </div>
-            {practiceQuestions.length > 0 && practiceQuestions.every((q) => hasAttempted(q.id)) && (
-              <div className="mt-6 p-5 rounded-2xl border bg-success/10 border-success/20 text-center space-y-3">
-                <p className="font-bold text-success text-base">Quiz complete! 🎉</p>
-                <p className="text-sm text-muted-foreground">
-                  Excellent work! Your answers have been recorded and your streak has been updated.
-                </p>
+
+            {/* Submit All button — visible while quiz not yet submitted (hidden in review mode) */}
+            {!isReviewMode && !submitted && (
+              <div className="mt-8 border-t pt-6 space-y-3">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>{Object.keys(localAnswers).length} / {practiceQuestions.length} answered</span>
+                  {Object.keys(localAnswers).length < practiceQuestions.length && (
+                    <span className="text-xs italic">Answer all questions to submit</span>
+                  )}
+                </div>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowQuizDialog(false);
-                    refreshProgress();
-                  }}
-                  className="mt-2"
+                  onClick={handleSubmitAll}
+                  disabled={Object.keys(localAnswers).length < practiceQuestions.length || submittingAll}
+                  className="w-full bg-gradient-primary hover:opacity-90 font-bold py-5 text-base rounded-xl flex items-center justify-center gap-2"
                 >
-                  Return to Practice Tab
+                  {submittingAll ? (
+                    <>
+                      <Sparkles className="h-5 w-5 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-5 w-5" />
+                      Submit All Answers
+                    </>
+                  )}
                 </Button>
+              </div>
+            )}
+
+            {/* Score banner — shown after submission */}
+            {submitted && score && (
+              <div className={cn(
+                "mt-8 p-6 rounded-2xl border text-center space-y-4",
+                score.correct / score.total >= 0.8
+                  ? "bg-success/10 border-success/20"
+                  : score.correct / score.total >= 0.5
+                  ? "bg-warning/10 border-warning/20"
+                  : "bg-destructive/10 border-destructive/20"
+              )}>
+                <div className="space-y-1">
+                  <p className="text-4xl font-bold">
+                    {score.correct} / {score.total}
+                  </p>
+                  <p className={cn(
+                    "text-xl font-semibold",
+                    score.correct / score.total >= 0.8 ? "text-success"
+                    : score.correct / score.total >= 0.5 ? "text-warning"
+                    : "text-destructive"
+                  )}>
+                    {Math.round((score.correct / score.total) * 100)}% Correct
+                  </p>
+                  <p className="text-sm text-muted-foreground pt-1">
+                    {score.correct / score.total >= 0.8
+                      ? "🎉 Outstanding! You've mastered this material."
+                      : score.correct / score.total >= 0.5
+                      ? "👍 Good effort! Review the explanations below to improve."
+                      : "💪 Keep going! Study the explanations and try again."}
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowQuizDialog(false);
+                      setActiveTab('history');
+                      refreshProgress();
+                    }}
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    View Quiz History
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowQuizDialog(false);
+                      refreshProgress();
+                    }}
+                  >
+                    Return to Practice
+                  </Button>
+                </div>
               </div>
             )}
           </div>

@@ -18,6 +18,14 @@ import { useToast } from '@/hooks/use-toast';
 interface QuestionCardProps {
   question: Question;
   index: number;
+  /** When true, hides the per-question Submit button and uses controlled answer selection */
+  bulkMode?: boolean;
+  /** Controlled selected answer — used in bulk mode */
+  externalAnswer?: string | null;
+  /** Called when user selects an option in bulk mode */
+  onAnswerSelect?: (questionId: string, answer: string) => void;
+  /** When true (after bulk submit), reveals correct/incorrect state for each card */
+  revealed?: boolean;
 }
 
 type AnswerState = 'unanswered' | 'correct' | 'incorrect';
@@ -28,8 +36,15 @@ const difficultyColors = {
   hard: 'bg-destructive/10 text-destructive border-destructive/20',
 };
 
-const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
-  const { hasAttempted, recordAttempt, getQuestionAttempt } = useStudy();
+const QuestionCard: React.FC<QuestionCardProps> = ({
+  question,
+  index,
+  bulkMode = false,
+  externalAnswer = null,
+  onAnswerSelect,
+  revealed = false,
+}) => {
+  const { recordAttempt, getQuestionAttempt } = useStudy();
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answerState, setAnswerState] = useState<AnswerState>('unanswered');
   const [showExplanation, setShowExplanation] = useState(false);
@@ -38,27 +53,42 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const previousAttempt = getQuestionAttempt(question.id);
-  const alreadyAttempted = hasAttempted(question.id);
+  // In bulk mode, ignore previous attempts (it's always a fresh quiz)
+  const previousAttempt = bulkMode ? undefined : getQuestionAttempt(question.id);
 
-  // If already attempted, show that state
+  // Restore state from a previous attempt (non-bulk mode only)
   React.useEffect(() => {
-    if (previousAttempt) {
+    if (!bulkMode && previousAttempt) {
       setSelectedAnswer(previousAttempt.student_answer);
       setAnswerState(previousAttempt.is_correct ? 'correct' : 'incorrect');
     }
-  }, [previousAttempt]);
+  }, [previousAttempt, bulkMode]);
+
+  // Collapse explanation when answers are freshly revealed
+  React.useEffect(() => {
+    if (revealed) setShowExplanation(false);
+  }, [revealed]);
+
+  // Derived display values:
+  //   bulk mode  → controlled by parent props
+  //   normal mode → local state
+  const effectiveSelectedAnswer = bulkMode ? externalAnswer : selectedAnswer;
+  const effectiveAnswerState: AnswerState = bulkMode
+    ? revealed && externalAnswer
+      ? externalAnswer === question.correct_answer
+        ? 'correct'
+        : 'incorrect'
+      : 'unanswered'
+    : answerState;
 
   const handleSubmit = async () => {
-    if (!selectedAnswer || submitting) return;
-    
+    if (!selectedAnswer || submitting || bulkMode) return;
     setSubmitting(true);
     const timeSpent = Math.round((Date.now() - startTime) / 1000);
-    
     try {
       const isCorrect = await recordAttempt(question.id, selectedAnswer, timeSpent);
       setAnswerState(isCorrect ? 'correct' : 'incorrect');
-    } catch (error) {
+    } catch {
       toast({
         title: 'Submission failed',
         description: 'Failed to submit your answer. Please try again.',
@@ -70,15 +100,19 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
   };
 
   const handleOptionSelect = (option: string) => {
-    if (answerState !== 'unanswered') return;
-    setSelectedAnswer(option);
+    if (effectiveAnswerState !== 'unanswered') return;
+    if (bulkMode) {
+      onAnswerSelect?.(question.id, option);
+    } else {
+      setSelectedAnswer(option);
+    }
   };
 
   return (
     <div className={cn(
       "question-card animate-fade-in",
-      answerState === 'correct' && "question-card-correct",
-      answerState === 'incorrect' && "question-card-incorrect"
+      effectiveAnswerState === 'correct' && "question-card-correct",
+      effectiveAnswerState === 'incorrect' && "question-card-incorrect"
     )}>
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
@@ -99,12 +133,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
             </div>
           )}
         </div>
-        {answerState !== 'unanswered' && (
+        {effectiveAnswerState !== 'unanswered' && (
           <div className={cn(
             "flex items-center gap-1.5 text-sm font-medium",
-            answerState === 'correct' ? "text-success" : "text-destructive"
+            effectiveAnswerState === 'correct' ? "text-success" : "text-destructive"
           )}>
-            {answerState === 'correct' ? (
+            {effectiveAnswerState === 'correct' ? (
               <>
                 <CheckCircle2 className="h-5 w-5" />
                 Correct!
@@ -126,19 +160,19 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
       {question.options && (
         <div className="space-y-3 mb-6">
           {question.options.map((option, optIndex) => {
-            const isSelected = selectedAnswer === option;
+            const isSelected = effectiveSelectedAnswer === option;
             const isCorrectOption = option === question.correct_answer;
-            const showResult = answerState !== 'unanswered';
-            
+            const showResult = effectiveAnswerState !== 'unanswered';
+
             return (
               <button
                 key={optIndex}
                 onClick={() => handleOptionSelect(option)}
-                disabled={answerState !== 'unanswered'}
+                disabled={effectiveAnswerState !== 'unanswered'}
                 className={cn(
                   "w-full text-left p-4 rounded-lg border-2 transition-all duration-200",
-                  answerState === 'unanswered' && !isSelected && "border-border hover:border-primary/50 hover:bg-muted/50",
-                  answerState === 'unanswered' && isSelected && "border-primary bg-primary/5",
+                  effectiveAnswerState === 'unanswered' && !isSelected && "border-border hover:border-primary/50 hover:bg-muted/50",
+                  effectiveAnswerState === 'unanswered' && isSelected && "border-primary bg-primary/5",
                   showResult && isCorrectOption && "border-success bg-success/10",
                   showResult && isSelected && !isCorrectOption && "border-destructive bg-destructive/10",
                   showResult && !isSelected && !isCorrectOption && "opacity-50"
@@ -147,8 +181,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
                 <div className="flex items-center gap-3">
                   <span className={cn(
                     "flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium border",
-                    answerState === 'unanswered' && !isSelected && "border-muted-foreground/30 text-muted-foreground",
-                    answerState === 'unanswered' && isSelected && "border-primary bg-primary text-primary-foreground",
+                    effectiveAnswerState === 'unanswered' && !isSelected && "border-muted-foreground/30 text-muted-foreground",
+                    effectiveAnswerState === 'unanswered' && isSelected && "border-primary bg-primary text-primary-foreground",
                     showResult && isCorrectOption && "border-success bg-success text-success-foreground",
                     showResult && isSelected && !isCorrectOption && "border-destructive bg-destructive text-destructive-foreground"
                   )}>
@@ -168,16 +202,18 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
         </div>
       )}
 
-      {/* Actions */}
-      {answerState === 'unanswered' && (
+      {/* Actions row — per-question Submit (non-bulk) + Hint button */}
+      {effectiveAnswerState === 'unanswered' && (
         <div className="flex items-center gap-3">
-          <Button 
-            onClick={handleSubmit}
-            disabled={!selectedAnswer || submitting}
-            className="bg-gradient-primary hover:opacity-90"
-          >
-            {submitting ? 'Submitting...' : 'Submit Answer'}
-          </Button>
+          {!bulkMode && (
+            <Button
+              onClick={handleSubmit}
+              disabled={!selectedAnswer || submitting}
+              className="bg-gradient-primary hover:opacity-90"
+            >
+              {submitting ? 'Submitting...' : 'Submit Answer'}
+            </Button>
+          )}
           {question.hints && question.hints.length > 0 && (
             <Button
               variant="outline"
@@ -195,7 +231,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
       )}
 
       {/* Hints (only before answering) */}
-      {showHints && answerState === 'unanswered' && question.hints && question.hints.length > 0 && (
+      {showHints && effectiveAnswerState === 'unanswered' && question.hints && question.hints.length > 0 && (
         <div className="mt-4 p-4 rounded-lg bg-warning/10 border border-warning/20 animate-slide-up">
           <div className="flex items-center gap-2 mb-2">
             <Lightbulb className="h-4 w-4 text-warning" />
@@ -213,7 +249,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
       )}
 
       {/* Explanation (only after answering) */}
-      {answerState !== 'unanswered' && (
+      {effectiveAnswerState !== 'unanswered' && (
         <div className="mt-6 border-t pt-6">
           <Button
             variant="ghost"
@@ -230,7 +266,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
               <ChevronDown className="h-4 w-4" />
             )}
           </Button>
-          
+
           {showExplanation && (
             <div className="mt-4 space-y-4 animate-slide-up">
               {/* Step-by-step explanation */}
@@ -262,7 +298,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
               {/* Encouragement */}
               <div className="p-4 rounded-lg bg-muted text-center">
                 <p className="text-sm text-muted-foreground">
-                  {answerState === 'correct' 
+                  {effectiveAnswerState === 'correct'
                     ? "🎉 Great job! Keep up the excellent work. Try more questions to strengthen your understanding."
                     : "💪 Don't worry! Learning from mistakes is part of the process. Review the explanation and try similar questions."
                   }
@@ -274,11 +310,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
                 <Button
                   id="ask-revi-btn"
                   onClick={() => {
-                    const isCorrect = answerState === 'correct';
+                    const isCorrect = effectiveAnswerState === 'correct';
                     const promptText = isCorrect
-                      ? `I correctly answered "${selectedAnswer}" to the question: "${question.question_text}". Can you expand on this concept and provide deeper insights or real-world applications?`
-                      : `I answered "${selectedAnswer}" to the question: "${question.question_text}" but the correct answer is "${question.correct_answer}". Can you explain my mistake and why the correct answer is right?`;
-                    
+                      ? `I correctly answered "${effectiveSelectedAnswer}" to the question: "${question.question_text}". Can you expand on this concept and provide deeper insights or real-world applications?`
+                      : `I answered "${effectiveSelectedAnswer}" to the question: "${question.question_text}" but the correct answer is "${question.correct_answer}". Can you explain my mistake and why the correct answer is right?`;
+
                     window.dispatchEvent(
                       new CustomEvent('open-revi-chat', {
                         detail: { message: promptText }
@@ -292,7 +328,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question, index }) => {
                   )}
                 >
                   <Sparkles className="h-4 w-4 text-white" />
-                  {answerState === 'correct'
+                  {effectiveAnswerState === 'correct'
                     ? "Ask Revi to expand on this"
                     : "Ask Revi to explain my mistake"}
                 </Button>

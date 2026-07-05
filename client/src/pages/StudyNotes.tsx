@@ -15,7 +15,8 @@ import {
   Brain,
   Share2,
   ExternalLink,
-  Link2
+  Link2,
+  CheckCircle2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient, Question } from '@/services/api.client';
@@ -23,7 +24,7 @@ import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/use-toast';
 import { useStudy } from '@/context/StudyContext';
 import QuestionCard from '@/components/practice/QuestionCard';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -46,6 +47,8 @@ const StudyNotes: React.FC = () => {
   const [isQuizMinimized, setIsQuizMinimized] = useState(false);
   const isMinimizingRef = useRef(false);
   const [showGeneratingDialog, setShowGeneratingDialog] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [showLoadingDialog, setShowLoadingDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showAIResultDialog, setShowAIResultDialog] = useState(false);
   const [aiResultTitle, setAIResultTitle] = useState('');
@@ -59,6 +62,13 @@ const StudyNotes: React.FC = () => {
   const [viewingPdf, setViewingPdf] = useState<string | null>(null);
   const { toast } = useToast();
   const { hasAttempted, refreshProgress } = useStudy();
+  const navigate = useNavigate();
+
+  // Bulk quiz submission state
+  const [localAnswers, setLocalAnswers] = useState<Record<string, string>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [quizScore, setQuizScore] = useState<{ correct: number; total: number } | null>(null);
+  const [submittingAll, setSubmittingAll] = useState(false);
 
   // Open a Cloudinary PDF URL inline in a new tab.
   // Problem: /raw/upload/ URLs are served by Cloudinary with Content-Disposition: attachment,
@@ -219,13 +229,29 @@ const StudyNotes: React.FC = () => {
 
   const handleGenerateQuestions = async () => {
     setShowSettingsDialog(false);
-    setShowGeneratingDialog(true);
+    setShowLoadingDialog(true);
+    setGenerationProgress(0);
+
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      // Exponential decay toward 95%
+      const progress = Math.min(95, Math.round(95 * (1 - Math.pow(Math.E, -elapsed / 4500))));
+      setGenerationProgress(progress);
+    }, 150);
+
     const result = await generateQuestions(selectedNoteId, questionCount, difficulty);
-    setShowGeneratingDialog(false);
+    clearInterval(interval);
+
     if (result) {
-      setPracticeQuestions(result);
-      setShowQuestionsDialog(true);
+      setGenerationProgress(100);
+      setTimeout(() => {
+        setPracticeQuestions(result);
+        setShowQuestionsDialog(true);
+        setShowLoadingDialog(false);
+      }, 600);
     } else {
+      setShowLoadingDialog(false);
       toast({
         title: 'Failed to generate questions',
         description: generateError ?? 'Could not generate questions from this note. Please try again.',
@@ -234,9 +260,43 @@ const StudyNotes: React.FC = () => {
     }
   };
 
-  const allQuestionsAnswered =
-    practiceQuestions.length > 0 &&
-    practiceQuestions.every((q) => hasAttempted(q.id));
+  // Reset bulk-submit state whenever a fresh quiz is generated
+  useEffect(() => {
+    if (practiceQuestions.length > 0) {
+      setLocalAnswers({});
+      setQuizSubmitted(false);
+      setQuizScore(null);
+    }
+  }, [practiceQuestions]);
+
+  const handleSubmitAll = async () => {
+    if (Object.keys(localAnswers).length < practiceQuestions.length || submittingAll) return;
+    setSubmittingAll(true);
+    let correct = 0;
+    const startTime = Date.now();
+    try {
+      for (const question of practiceQuestions) {
+        const answer = localAnswers[question.id];
+        if (answer) {
+          try {
+            const result = await apiClient.submitAnswer({
+              question_id: question.id,
+              student_answer: answer,
+              time_spent_seconds: Math.round((Date.now() - startTime) / 1000),
+            });
+            if (result.is_correct) correct++;
+          } catch {
+            // continue submitting others even if one fails
+          }
+        }
+      }
+      setQuizScore({ correct, total: practiceQuestions.length });
+      setQuizSubmitted(true);
+      await refreshProgress();
+    } finally {
+      setSubmittingAll(false);
+    }
+  };
 
   return (
     <MainLayout>
@@ -540,20 +600,41 @@ const StudyNotes: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showGeneratingDialog} onOpenChange={() => { }}>
-        <DialogContent className="max-w-sm" onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 border-2">
-              <Sparkles className="h-5 w-5 text-primary animate-spin" />
-              Generating your quiz
-            </DialogTitle>
-            <DialogDescription className="space-y-2 pt-2">
-              <p>AI is reading your notes and building {questionCount} questions.</p>
-              <p className="text-xs">
-                This usually takes 5–10 seconds. Larger notes or 20+ questions may take a bit longer.
-              </p>
-            </DialogDescription>
-          </DialogHeader>
+      {/* Generating Dialog Overlay with Dynamic Progress Bar */}
+      <Dialog open={showLoadingDialog} onOpenChange={() => { }}>
+        <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl flex flex-col gap-5" onPointerDownOutside={(e) => e.preventDefault()}>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-primary/10 rounded-xl text-primary animate-pulse">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg text-foreground">Generating Your Quiz</h3>
+              <p className="text-xs text-muted-foreground">AI is reading your materials and building {questionCount} questions...</p>
+            </div>
+          </div>
+          
+          <div className="space-y-2 mt-2">
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-primary font-medium animate-pulse">
+                {generationProgress < 20 ? "Scanning study notes..." :
+                 generationProgress < 45 ? "Extracting key concepts..." :
+                 generationProgress < 70 ? "Generating practice questions..." :
+                 generationProgress < 90 ? "Formulating answer options..." :
+                 generationProgress < 100 ? "Polishing explanations..." :
+                 "Popping quiz out!"}
+              </span>
+              <span className="text-muted-foreground font-mono">{generationProgress}%</span>
+            </div>
+            <div className="w-full h-3 bg-muted rounded-full overflow-hidden relative">
+              <div 
+                className="h-full bg-gradient-primary rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${generationProgress}%` }}
+              />
+            </div>
+          </div>
+          <div className="text-[11px] text-muted-foreground/80 leading-relaxed italic bg-muted/40 p-3 rounded-lg border border-border/40 text-center">
+            &quot;Every incorrect answer is a custom learning path generated just for you. Take your time, think through them!&quot;
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -576,7 +657,7 @@ const StudyNotes: React.FC = () => {
             <DialogTitle>Practice Quiz</DialogTitle>
             <div className="flex items-center justify-between gap-3">
               <DialogDescription className="text-left flex-1 min-w-0 m-0">
-                {practiceQuestions.length} {difficulty} questions — select an answer and submit before viewing explanations.
+                {practiceQuestions.length} {difficulty} questions — select your answers then hit "Submit All" to see your score.
               </DialogDescription>
               <Button
                 type="button"
@@ -596,23 +677,104 @@ const StudyNotes: React.FC = () => {
           <div className="overflow-y-auto px-6 py-4">
             <div className="space-y-6">
               {practiceQuestions.map((question, index) => (
-                <QuestionCard key={question.id} question={question} index={index} />
+                <QuestionCard
+                  key={question.id}
+                  question={question}
+                  index={index}
+                  bulkMode={!quizSubmitted}
+                  externalAnswer={localAnswers[question.id] ?? null}
+                  onAnswerSelect={(qId, answer) =>
+                    setLocalAnswers((prev) => ({ ...prev, [qId]: answer }))
+                  }
+                  revealed={quizSubmitted}
+                />
               ))}
             </div>
-            {allQuestionsAnswered && (
-              <div className="mt-6 p-4 rounded-xl border bg-success/10 border-success/20 text-center space-y-3">
-                <p className="font-medium text-success">Quiz complete!</p>
-                <p className="text-sm text-muted-foreground">
-                  Your dashboard stats have been updated.
-                </p>
-                <Button asChild variant="outline" size="sm">
-                  <Link to="/dashboard" onClick={() => {
-                    setShowQuestionsDialog(false);
-                    setIsQuizMinimized(false);
-                  }}>
-                    View Dashboard
-                  </Link>
+
+            {/* Submit All button */}
+            {!quizSubmitted && (
+              <div className="mt-8 border-t pt-6 space-y-3">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>{Object.keys(localAnswers).length} / {practiceQuestions.length} answered</span>
+                  {Object.keys(localAnswers).length < practiceQuestions.length && (
+                    <span className="text-xs italic">Answer all questions to submit</span>
+                  )}
+                </div>
+                <Button
+                  onClick={handleSubmitAll}
+                  disabled={Object.keys(localAnswers).length < practiceQuestions.length || submittingAll}
+                  className="w-full bg-gradient-primary hover:opacity-90 font-bold py-5 text-base rounded-xl flex items-center justify-center gap-2"
+                >
+                  {submittingAll ? (
+                    <>
+                      <Sparkles className="h-5 w-5 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-5 w-5" />
+                      Submit All Answers
+                    </>
+                  )}
                 </Button>
+              </div>
+            )}
+
+            {/* Score banner */}
+            {quizSubmitted && quizScore && (
+              <div className={cn(
+                "mt-8 p-6 rounded-2xl border text-center space-y-4",
+                quizScore.correct / quizScore.total >= 0.8
+                  ? "bg-success/10 border-success/20"
+                  : quizScore.correct / quizScore.total >= 0.5
+                  ? "bg-warning/10 border-warning/20"
+                  : "bg-destructive/10 border-destructive/20"
+              )}>
+                <div className="space-y-1">
+                  <p className="text-4xl font-bold">
+                    {quizScore.correct} / {quizScore.total}
+                  </p>
+                  <p className={cn(
+                    "text-xl font-semibold",
+                    quizScore.correct / quizScore.total >= 0.8 ? "text-success"
+                    : quizScore.correct / quizScore.total >= 0.5 ? "text-warning"
+                    : "text-destructive"
+                  )}>
+                    {Math.round((quizScore.correct / quizScore.total) * 100)}% Correct
+                  </p>
+                  <p className="text-sm text-muted-foreground pt-1">
+                    {quizScore.correct / quizScore.total >= 0.8
+                      ? "🎉 Outstanding! You've mastered this material."
+                      : quizScore.correct / quizScore.total >= 0.5
+                      ? "👍 Good effort! Review the explanations below to improve."
+                      : "💪 Keep going! Study the explanations and try again."}
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowQuestionsDialog(false);
+                      setIsQuizMinimized(false);
+                      navigate('/practice?tab=history');
+                    }}
+                  >
+                    <FileQuestion className="h-4 w-4 mr-2" />
+                    View Quiz History
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowQuestionsDialog(false);
+                      setIsQuizMinimized(false);
+                      refreshProgress();
+                    }}
+                  >
+                    Close Quiz
+                  </Button>
+                </div>
               </div>
             )}
           </div>
