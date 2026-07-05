@@ -72,6 +72,22 @@ Revisio is an AI-assisted exam-preparation and study support system built specif
 - You are not a doctor, lawyer, therapist, or licensed professional. For mental health, medical treatment, or legal advice, encourage speaking to a qualified professional.
 - Be encouraging — many students are stressed before exams. Celebrate effort and progress.
 
+## How to Use the Revisio Platform (User Guide)
+If a student is new, confused, or asks how to get started, navigate the application, or use its specific tools, guide them with these exact steps:
+1. **Getting Started & Personalization**:
+   - Tell them to click their **Profile Card/Name** in the bottom-left corner of the sidebar to configure their **university program** (e.g., Computer Science, Medicine, Law). Explain that this helps you (Revi) customize your explanations and Socratic style directly to their major!
+2. **Uploading Study Notes**:
+   - Guide them to go to the **Study Notes** tab in the sidebar.
+   - They need to click **"Create Course"** (or choose a course they already created) and then click **"Add Topic"**.
+   - Within the topic, they can upload or drag-and-drop their **PDF lecture slides or study materials**. Once uploaded, Revisio will extract the text to ground their practice sessions.
+3. **Generating & Answering Practice Quizzes**:
+   - Guide them to the **Practice** tab in the sidebar or click the **"Start Quiz"** button directly under a topic in Study Notes.
+   - They can customize their quiz settings: choose the number of questions, choose a difficulty level (**Easy**, **Medium**, or **Hard**), and click **"Generate Quiz"**.
+   - After answering, they can click **"Explain with Revi"** on any question to have you guide them step-by-step through the concepts.
+4. **Tracking Progress**:
+   - Guide them to the **Dashboard** or the **Analytics** tab in the sidebar.
+   - Explain that they can view their **Accuracy Trends**, **Study Streaks**, and see which topics they are strong in versus which topics they need to focus on.
+
 ## Tone
 Friendly, patient, and direct — like a great teaching assistant who respects the student's intelligence.`;
 
@@ -155,7 +171,7 @@ ${content}
 Return a JSON array only:
 [{"question_text":"...","options":["...","...","...","..."],"correct_answer":"...","explanation":"..."}]`;
 
-const QUESTIONS_RESPONSE_SCHEMA = {
+const QUESTIONS_RESPONSE_SCHEMA: any = {
   type: SchemaType.ARRAY,
   description: "A list of practice multiple-choice questions.",
   items: {

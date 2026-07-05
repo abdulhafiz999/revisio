@@ -97,6 +97,13 @@ const WELCOME_MESSAGE: ChatMessage = {
     "Hey there! 👋 I'm **Revi**, your AI study assistant. I'm here to help you understand concepts, prepare for exams, and answer your academic questions.\n\nWhat would you like to know?",
 };
 
+const ONBOARDING_SUGGESTIONS = [
+  { text: 'How do I get started?', emoji: '🚀' },
+  { text: 'How do I upload study slides?', emoji: '📄' },
+  { text: 'How do I start a practice quiz?', emoji: '🎯' },
+  { text: 'What is the Analytics dashboard?', emoji: '📊' },
+];
+
 const MOBILE_BREAKPOINT = 1024;
 const DEFAULT_SHEET_HEIGHT_VH = 80;
 const MIN_SHEET_HEIGHT_VH = 40;
@@ -382,6 +389,36 @@ export function AiChatWidget() {
     }
   };
 
+  const handleSuggestionClick = async (suggestionText: string) => {
+    if (isLoading) return;
+
+    const userMessage: ChatMessage = { role: 'user', content: suggestionText };
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    setIsLoading(true);
+
+    try {
+      // Send only the conversation history (excluding the initial welcome message)
+      const conversationToSend = updatedMessages.slice(1); // skip welcome
+      const reply = await apiClient.sendChatMessage(conversationToSend);
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+    } catch (error: any) {
+      const errMsg =
+        error?.response?.data?.error ||
+        error?.message ||
+        'Something went wrong. Please try again.';
+      toast({
+        title: 'Revi is unavailable',
+        description: errMsg,
+        variant: 'destructive',
+      });
+      // Remove the user message on error so they can retry
+      setMessages((prev) => prev.slice(0, -1));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -580,6 +617,31 @@ export function AiChatWidget() {
                     </div>
                   </div>
                 ))}
+
+                {messages.length === 1 && !isLoading && (
+                  <div className="pl-9 pr-2 pt-2 animate-slide-up">
+                    <p className="text-xs text-muted-foreground mb-3 font-semibold tracking-wide uppercase opacity-75">
+                      Need help getting started? Ask me:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ONBOARDING_SUGGESTIONS.map((sug, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSuggestionClick(sug.text)}
+                          className={cn(
+                            'flex items-center gap-2.5 px-3.5 py-2.5 text-left rounded-xl text-xs font-semibold',
+                            'border border-primary/20 bg-primary/5 text-foreground hover:bg-primary/10 hover:border-primary/45',
+                            'hover:text-primary transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm',
+                            'active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-primary/30'
+                          )}
+                        >
+                          <span className="text-sm select-none">{sug.emoji}</span>
+                          <span className="flex-1 leading-normal">{sug.text}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Loading indicator */}
                 {isLoading && (
