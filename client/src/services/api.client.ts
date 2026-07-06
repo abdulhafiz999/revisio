@@ -319,10 +319,17 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status === 401) {
       tokenStorage.remove();
       cache.clear();
+
+      // Check if we are currently logging out to avoid redirect loop/interruption
+      const isLoggingOut = sessionStorage.getItem('revisio_logging_out') === 'true';
+      if (isLoggingOut) {
+        return Promise.reject(error);
+      }
+
       // Only redirect if not already on an auth page
       const authPages = ['/login', '/register', '/forgot-password'];
       if (!authPages.some(page => window.location.pathname.startsWith(page))) {
-        window.location.href = '/login';
+        window.location.href = '/';
       }
       return Promise.reject(error);
     }
