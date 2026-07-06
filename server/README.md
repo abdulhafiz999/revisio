@@ -123,11 +123,8 @@ server/
 └── README.md
 ```
 
-## API Documentation
-
-See `docs/API.md` for complete API documentation.
-
 ## Security
+
 
 - All endpoints use HTTPS in production
 - CORS is configured to allow only specified origins
