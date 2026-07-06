@@ -83,6 +83,54 @@ const iconBg: Record<string, string> = {
   warning: 'bg-warning/10 text-warning',
 };
 
+const HeroIllustration: React.FC<{ className?: string; tilt?: boolean }> = ({
+  className = 'max-w-md',
+  tilt = true,
+}) => (
+  <div
+    className={`relative w-full animate-fade-in ${className}`}
+    style={tilt ? { perspective: '1200px' } : undefined}
+  >
+    <div
+      className="absolute inset-0 rounded-3xl blur-3xl opacity-30"
+      style={{ background: 'radial-gradient(ellipse at center, hsl(var(--primary)), transparent 70%)' }}
+    />
+    <img
+      src="/3dimage.png"
+      alt="Student studying with notes and a laptop"
+      className="relative w-full rounded-3xl shadow-2xl"
+      style={
+        tilt
+          ? {
+              transform: 'rotateY(-8deg) rotateX(4deg) scale(1.02)',
+              transformStyle: 'preserve-3d',
+              boxShadow: '0 40px 80px -20px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
+              transition: 'transform 0.4s ease',
+            }
+          : {
+              boxShadow: '0 24px 48px -16px rgba(0,0,0,0.25)',
+            }
+      }
+      onMouseEnter={
+        tilt
+          ? (e) => {
+              (e.currentTarget as HTMLImageElement).style.transform =
+                'rotateY(-4deg) rotateX(2deg) scale(1.04)';
+            }
+          : undefined
+      }
+      onMouseLeave={
+        tilt
+          ? (e) => {
+              (e.currentTarget as HTMLImageElement).style.transform =
+                'rotateY(-8deg) rotateX(4deg) scale(1.02)';
+            }
+          : undefined
+      }
+    />
+  </div>
+);
+
 const Landing: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const { resolvedTheme } = useTheme();
@@ -132,38 +180,53 @@ const Landing: React.FC = () => {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-hero opacity-[0.07] pointer-events-none" />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 lg:py-28">
-          <div className="max-w-3xl mx-auto text-center space-y-8 animate-fade-in">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary">
-              <Sparkles className="h-4 w-4" />
-              Learning-focused exam prep
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            {/* Hero copy — headline block */}
+            <div className="lg:col-span-7 text-center lg:text-left space-y-8 animate-fade-in order-1">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary">
+                <Sparkles className="h-4 w-4" />
+                Learning-focused exam prep
+              </div>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
+                Study smarter with{' '}
+                <span className="text-gradient-primary">your notes</span> and real progress
+              </h1>
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-              Study smarter with{' '}
-              <span className="text-gradient-primary">your notes</span> and real progress
-            </h1>
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Revisio helps you upload study materials, practice with AI-generated quizzes,
-              and track what you actually understand — built for learning, not shortcuts.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <Button size="lg" asChild className="w-full sm:w-auto bg-gradient-primary hover:opacity-90 text-base px-8">
-                <Link to="/register">
-                  Get started — it&apos;s free
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="w-full sm:w-auto text-base px-8">
-                <Link to="/login">I already have an account</Link>
-              </Button>
+
+            {/* Illustration — between headline and CTAs on mobile, right column on desktop */}
+            <div className="flex justify-center order-2 lg:hidden">
+              <HeroIllustration className="max-w-[240px] sm:max-w-xs w-full" tilt={false} />
             </div>
-            <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground pt-4">
-              {['Upload PDF notes', 'AI summaries & quizzes', 'Streaks & weekly stats'].map((item) => (
-                <li key={item} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <div className="hidden lg:flex lg:col-span-5 lg:row-span-2 items-center justify-center order-2">
+              <HeroIllustration className="max-w-md w-full" />
+            </div>
+
+            {/* Hero copy — description + CTAs */}
+            <div className="lg:col-span-7 text-center lg:text-left space-y-8 animate-fade-in order-3">
+              <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto lg:mx-0">
+                Revisio helps you upload study materials, practice with AI-generated quizzes,
+                and track what you actually understand — built for learning, not shortcuts.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-2">
+                <Button size="lg" asChild className="w-full sm:w-auto bg-gradient-primary hover:opacity-90 text-base px-8">
+                  <Link to="/register">
+                    Get started — it&apos;s free
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" asChild className="w-full sm:w-auto text-base px-8">
+                  <Link to="/login">I already have an account</Link>
+                </Button>
+              </div>
+              <ul className="flex flex-wrap justify-center lg:justify-start gap-x-6 gap-y-2 text-sm text-muted-foreground pt-4">
+                {['Upload PDF notes', 'AI summaries & quizzes', 'Streaks & weekly stats'].map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -245,7 +308,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* CTA */}
-      <section className="border-t bg-gradient-to-br from-primary/10 via-background to-accent/10 py-16 sm:py-20">
+      <section className="border-t bg-muted/30 py-16 sm:py-20">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center space-y-6">
           <h2 className="text-2xl sm:text-3xl font-bold">Ready to start your session?</h2>
           <p className="text-muted-foreground">

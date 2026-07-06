@@ -55,17 +55,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const handleLogout = async () => {
     try {
+      sessionStorage.setItem('revisio_logging_out', 'true');
       await apiClient.logout();
-      logout();
+      await logout();
       toast({
         title: 'Logged out',
         description: 'You have been successfully logged out.',
       });
-      navigate('/login');
+      navigate('/');
     } catch (error) {
       // Even if API call fails, clear local auth
-      logout();
-      navigate('/login');
+      await logout();
+      navigate('/');
+    } finally {
+      sessionStorage.removeItem('revisio_logging_out');
     }
   };
 
