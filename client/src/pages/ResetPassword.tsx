@@ -68,7 +68,7 @@ const ResetPassword: React.FC = () => {
       });
       
       // Clean up recovery session
-      logout();
+      await logout();
       
       navigate('/login');
     } else {
