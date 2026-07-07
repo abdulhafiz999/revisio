@@ -62,7 +62,7 @@ const features = [
   },
   {
     icon: Brain,
-    title: 'Brilla AI',
+    title: 'Revi AI',
     description:
       'Generate quizzes and summaries tuned to your notes, not generic exam dumps.',
     color: 'accent',
