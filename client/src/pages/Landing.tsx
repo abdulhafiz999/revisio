@@ -27,7 +27,7 @@ const steps = [
   {
     step: '2',
     title: 'Add your materials',
-    description: 'Upload PDF study notes or practice questions to build your library.',
+    description: 'Upload your PDF study notes and lecture materials to build your library.',
     icon: Upload,
   },
   {

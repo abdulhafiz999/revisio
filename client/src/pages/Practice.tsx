@@ -471,7 +471,7 @@ const Practice: React.FC = () => {
                         </div>
                         <h3 className="text-xl font-bold mt-2 text-foreground">{selectedNote.title}</h3>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Create custom multiple-choice questions from this document using Gemini 3.5 Flash.
+                          Create custom multiple-choice questions from this document using Revi AI.
                         </p>
                       </div>
 
