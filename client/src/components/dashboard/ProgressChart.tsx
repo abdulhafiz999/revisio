@@ -69,7 +69,7 @@ const ProgressChart: React.FC<ProgressChartProps> = ({ data }) => {
         mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
       )}
     >
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
         <div>
           <h3 className="text-lg font-semibold">Last 7 days</h3>
           <p className="text-sm text-muted-foreground">
@@ -78,7 +78,16 @@ const ProgressChart: React.FC<ProgressChartProps> = ({ data }) => {
               : 'Your activity grid fills in as you practice'}
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">Less → More</p>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-xs text-muted-foreground mr-0.5">Less</span>
+          {[0, 1, 2, 3, 4].map((level) => (
+            <div
+              key={level}
+              className={cn('w-3.5 h-3.5 rounded-sm border border-border/40', levelClasses[level as 0 | 1 | 2 | 3 | 4])}
+            />
+          ))}
+          <span className="text-xs text-muted-foreground ml-0.5">More</span>
+        </div>
       </div>
 
       {/* GitHub-style contribution row */}
@@ -190,22 +199,14 @@ const ProgressChart: React.FC<ProgressChartProps> = ({ data }) => {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-6 mt-4">
+      <div className="flex flex-wrap items-center justify-center gap-5 mt-4 pt-4 border-t border-border/40">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-primary" />
-          <span className="text-sm text-muted-foreground">Attempted</span>
+          <div className="w-3.5 h-3.5 rounded-sm bg-primary" />
+          <span className="text-sm font-medium text-foreground">Attempted</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-success" />
-          <span className="text-sm text-muted-foreground">Correct</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {[0, 1, 2, 3, 4].map((level) => (
-            <div
-              key={level}
-              className={cn('w-3 h-3 rounded-sm', levelClasses[level as 0 | 1 | 2 | 3 | 4])}
-            />
-          ))}
+          <div className="w-3.5 h-3.5 rounded-full bg-[hsl(var(--success))] ring-2 ring-[hsl(var(--success))]/30" />
+          <span className="text-sm font-medium text-[hsl(var(--success))]">Correct</span>
         </div>
       </div>
     </div>
