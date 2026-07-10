@@ -311,7 +311,7 @@ const StudyNotes: React.FC = () => {
           </p>
         </div>
 
-        <div className="p-4 rounded-xl bg-warning/10 border border-warning/20 flex items-start gap-3">
+        {/* <div className="p-4 rounded-xl bg-warning/10 border border-warning/20 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
           <div>
             <p className="font-medium text-warning">Learning-Focused AI</p>
@@ -320,7 +320,7 @@ const StudyNotes: React.FC = () => {
               It will summarize content, explain difficult concepts, and generate practice questions to test your understanding.
             </p>
           </div>
-        </div>
+        </div> */}
 
         <input
           type="file"
