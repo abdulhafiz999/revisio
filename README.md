@@ -1,4 +1,4 @@
-# REVISIO 🚀
+# REVISIO
 ### AI-Assisted Exam Preparation & Study Support System
 
 REVISIO is an advanced, AI-powered learning and exam preparation system. It helps students and educators create study materials, generate active-recall quizzes, analyze learning progress, and manage study resources with generative AI.
