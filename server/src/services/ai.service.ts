@@ -9,7 +9,7 @@ import { ExternalServiceError, RateLimitError } from '../middleware/errorHandler
 // ============================================================================
 
 /** Fallback models to try when the primary Gemini model is unavailable */
-const GEMINI_FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'] as const;
+const GEMINI_FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'] as const;
 
 /** Number of retries for transient errors (503, 502, 500) */
 const TRANSIENT_RETRIES = 3;
