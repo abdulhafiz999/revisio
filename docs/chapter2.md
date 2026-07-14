@@ -35,37 +35,35 @@ Chang et al. (2023) argue that when AI chatbots are designed with proper pedagog
 
 This scaffolding is further analyzed by Hartley (2024), who evaluated ChatGPT as an independent study tool for students learning programming. Hartley demonstrated that AI tools significantly enhance personalized independent study by providing instantaneous, low-stakes diagnostic feedback. When a student receives an immediate, tailored explanation for an error rather than just a binary "correct/incorrect" mark, they can rapidly correct misconceptions before they become cognitive habits. 
 
-However, both Chang et al. (2023) and Hartley (2024) note a major structural limitation: commercial, general-purpose LLM interfaces (like standard ChatGPT) do not maintain persistent, structured records of student performance across sessions. Consequently, they cannot support the long-term, data-driven cycle of the Self-Reflection phase. The student is left to manually track their own weaknesses. The proposed system addresses this by integrating a Mongo-Express-React-Node (MERN) database to persistently store exam attempt histories, quiz scores, and subject-specific error logs, translating transient AI interactions into a structured, visible learning trajectory.
+However, both Chang et al. (2023) and Hartley (2024) note a major structural limitation: commercial, general-purpose LLM interfaces (like standard ChatGPT) do not maintain persistent, structured records of student performance across sessions. Consequently, they cannot support the long-term, data-driven cycle of the Self-Reflection phase. The student is left to manually track their own weaknesses. The proposed system addresses this by integrating a relational database to persistently store exam attempt histories, quiz scores, and subject-specific error logs, translating transient AI interactions into a structured, visible learning trajectory.
 
 ---
 
-### 2.2.3 Retrieval-Augmented Generation (RAG) for Contextual Revision
+### 2.2.3 Document Grounding and In-Context Learning for Contextual Revision
 A primary challenge of deploying commercial Large Language Models (LLMs) in higher education is their lack of domain-specific context and susceptibility to factual errors, commonly referred to as "hallucinations." LLMs are trained on massive, generalized public datasets, meaning they lack access to proprietary university textbooks, specific lecture slides, and localized course syllabi. In an exam preparation context, this lack of alignment is highly detrimental; an AI might explain a computer science concept using terminology, code libraries, or mathematical notations that differ significantly from those tested by the course instructor.
 
-Retrieval-Augmented Generation (RAG), first introduced by Lewis et al. (2020), has emerged as the standard architectural framework to resolve this limitation. Instead of relying solely on the pre-trained weights of the LLM, RAG retrieves relevant information from a localized document store and appends it to the LLM's prompt context before generating a response.
+Retrieval-Augmented Generation (RAG), first introduced by Lewis et al. (2020), has historically emerged as the standard architectural framework to resolve this limitation. In traditional RAG systems, uploaded documents are parsed, divided into small semantic chunks, converted into high-dimensional vector embeddings, and indexed within a specialized vector database. When a student initiates a request, the system runs a vector similarity search to retrieve a subset of text chunks and injects them into the prompt. While effective for massive corpora, traditional chunk-based RAG introduces risks of context fragmentation, where key surrounding details are lost during chunk segmentation or vector matching.
 
-The technical workflow of a RAG system within an educational application involves several sequential steps:
-1. **Document Ingestion & Parsing:** The student uploads course materials (e.g., lecture PDFs, textbook chapters, or syllabus documents). The backend extracts the raw text.
-2. **Text Chunking:** The extracted text is split into smaller, overlapping semantic chunks (e.g., 500 characters with 50-character overlaps) to preserve contextual boundaries.
-3. **Embedding Generation:** Each text chunk is passed through an embedding model (such as OpenAI's `text-embedding-3-small` or Google's `text-embedding-004`) to generate a vector representation—a high-dimensional coordinate representing the semantic meaning of the text.
-4. **Vector Storage:** These vector embeddings, along with the raw text metadata, are stored in a specialized vector database (such as MongoDB Atlas Vector Search).
-5. **Retrieval & Contextualization:** When the student queries the system or requests a practice question, the query is converted into a vector embedding. The system executes a vector search (using cosine similarity or Euclidean distance) to retrieve the top $k$ most semantically relevant text chunks from the uploaded PDFs.
-6. **Prompt Synthesis & Generation:** The retrieved text chunks are injected into the system prompt as "ground truth" context. The LLM is instructed: *"Generate a practice question and explanation based strictly on the provided context."*
+To overcome these constraints, the proposed system, Revisio, leverages the massive context windows offered by next-generation language models like Google's Gemini 2.5 Flash (supporting up to 1 million tokens). This architectural advancement enables **Direct In-Context Document Grounding**. Instead of performing lossy segment chunking and vector index searches, the system extracts the entire text content from the student's uploaded lecture slides and passes it directly in the system prompt context as the absolute ground truth. 
+
+The data and parsing workflow of Revisio operates in four clean sequential phases:
+1. **Document Upload & Storage:** The student uploads lecture slides in PDF format. The backend handles the multipart stream, uploads the raw PDF file to Cloudinary storage, and obtains a globally cached CDN URL.
+2. **Text Extraction:** Simultaneously, the backend extracts the full raw text buffer from the PDF using the `pdf-parse` engine.
+3. **Relational Note Persistence:** Rather than writing to a vector index, the extracted text and CDN URL are saved as a single record in the `study_notes` table of a Supabase PostgreSQL database, indexed by the user and course.
+4. **Context Injection & Question Synthesis:** When the student clicks "Generate Quiz", the backend fetches the full note text from PostgreSQL and injects it directly into the Gemini prompt context, instructing the model to generate multiple-choice questions aligned with the material.
 
 ```mermaid
 graph TD
-    A[User Uploads PDF] --> B[Text Extraction & Chunking]
-    B --> C[Generate Vector Embeddings]
-    C --> D[Store in Vector DB - MongoDB Atlas]
-    E[User Query / Practice Request] --> F[Convert Query to Vector]
-    F --> D
-    D -->|Similarity Search| G[Retrieve Top-k Relevant Chunks]
-    G --> H[Synthesize Grounded Prompt]
-    H --> I[LLM API - OpenAI / Gemini]
-    I --> J[Generate Curricular-Aligned Output]
+    A[Student Uploads PDF Notes] --> B[Upload Raw PDF to Cloudinary]
+    A --> C[Extract Full Text via pdf-parse]
+    C --> D[Save Note Content in Supabase PostgreSQL]
+    E[Student Selects Quiz Settings] --> F[Fetch Full Note Text from DB]
+    F --> G[Inject Full Text Context into Gemini Prompt]
+    G --> H[Gemini API - In-Context Grounding]
+    H --> I[Generate JSON Practice Questions & Explanations]
 ```
 
-By grounding the AI's generation capability in local course materials, RAG transforms the LLM from a generic chatbot into a highly localized, course-specific tutor. Recent studies in computer science education (Lau & Suen, 2024; Zhang et al., 2025) demonstrate that RAG-grounded tutoring bots achieve a near-zero rate of conceptual hallucination, ensuring that student revision remains strictly aligned with the class curriculum.
+By grounding the AI's generation capability directly in the complete course materials, the system transforms the LLM from a generic chatbot into a highly localized, course-specific tutor. Recent studies in computer science education (Lau & Suen, 2024; Zhang et al., 2025) confirm that document-grounded tutoring bots achieve a near-zero rate of conceptual hallucination, ensuring that student revision remains strictly aligned with the class curriculum.
 
 ---
 
@@ -77,7 +75,7 @@ Ferguson et al. (2024) highlight the shift toward *student-facing learning analy
 * **Mastery Levels:** Visualizing performance across different sub-topics (e.g., scoring 80% in "Database Normalization" but only 40% in "SQL Joins").
 * **Error Analysis:** Categorizing the types of questions repeatedly failed (e.g., conceptual questions vs. code syntax queries).
 
-By visualizing these metrics, learning analytics triggers a metacognitive feedback loop. According to the cognitive principles of self-regulated learning, when students are presented with objective, visual data showing their conceptual weaknesses, they are prompted to adapt their study behaviors. In the proposed system, this tracking does not just inform the student; it feeds back into the AI API. The system uses the student's weak areas (captured in the MongoDB database) to instruct the AI to generate targeted practice questions on those specific topics, closing the loop between diagnostic tracking and personalized learning.
+By visualizing these metrics, learning analytics triggers a metacognitive feedback loop. According to the cognitive principles of self-regulated learning, when students are presented with objective, visual data showing their conceptual weaknesses, they are prompted to adapt their study behaviors. In the proposed system, this tracking does not just inform the student; it feeds back into the AI API. The system uses the student's weak areas (captured in the relational database tables) to instruct the AI to generate targeted practice questions on those specific topics, closing the loop between diagnostic tracking and personalized learning.
 
 ---
 
@@ -106,18 +104,18 @@ To clarify the unique contribution of the proposed *Revisio* system, it is neces
 | **Khan Academy (Khanmigo)** | Closed Web Platform (GPT-4 backend) | K-12 and introductory college courses; math, science, humanities. | **None** (Limited to pre-loaded Khan Academy course materials). | **Highly Socratic:** Prompts students to think; avoids giving direct answers. | **Instructor-Facing:** Primarily logs progress for teacher view; limited student self-diagnosis. |
 | **Quizlet** | Web & Mobile App (React Native, Cloud APIs) | Memorization via flashcards, matching games, and practice tests. | **Very Limited** (Allows raw text copying to generate flashcards; no vector RAG). | **None/Low:** Generates static multiple-choice questions; lacks dialogic explanations. | **Basic:** Displays streak counts and percentage scores; lacks topic-specific mastery metrics. |
 | **Duolingo** | Gamified Mobile App | Language acquisition and introductory math/music. | **None** (Strictly closed, proprietary gamified curriculum). | **Simulated Dialogues:** Rigid, tree-based dialogue trees; no free-form conceptual discussion. | **Gamified Analytics:** Focuses on streaks, XP, and leaderboards rather than diagnostic mastery. |
-| **Proposed System (Revisio)** | **MERN Stack** (MongoDB, Express, React, Node.js) with OpenAI/Gemini API | Contextual university exam preparation and curriculum-aligned revision. | **Full Integration:** PDF uploads are parsed, embedded, and stored in MongoDB Vector Search. | **Guided/Socratic:** Configured via system prompts to deliver step-by-step hints and active recall questions. | **Advanced Student Dashboard:** Persistent MongoDB tracking of mastery, weak areas, and active study hours. |
+| **Proposed System (Revisio)** | React, Express, TypeScript (Node.js) with Supabase (PostgreSQL) and Gemini API | Contextual university exam preparation and curriculum-aligned revision. | **Full Integration:** PDF uploads are parsed via pdf-parse, raw files are saved to Cloudinary, and full text is passed directly into Gemini's 1M-token context window. | **Guided/Socratic:** Configured via system prompts to deliver step-by-step hints and active recall questions. | **Advanced Student Dashboard:** Persistent PostgreSQL tracking of mastery, weak areas, streaks, and active study hours. |
 
-As shown in Table 2.1, standard AI chatbots (ChatGPT/Gemini) lack the localized context and structural tracking necessary for rigorous academic revision. Closed platforms like Khanmigo offer excellent pedagogical models but restrict students to preloaded content, making them unusable for university students who must revise unique lecture notes and slide decks. Flashcard apps like Quizlet lack conversational depth, and Duolingo is limited to language learning. The proposed *Revisio* system bridges these gaps by providing an open-context RAG architecture that allows students to upload their specific materials, combined with a persistent MERN-stack database that powers a diagnostic learning analytics dashboard.
+As shown in Table 2.1, standard AI chatbots (ChatGPT/Gemini) lack the localized context and structural tracking necessary for rigorous academic revision. Closed platforms like Khanmigo offer excellent pedagogical models but restrict students to preloaded content, making them unusable for university students who must revise unique lecture notes and slide decks. Flashcard apps like Quizlet lack conversational depth, and Duolingo is limited to language learning. The proposed *Revisio* system bridges these gaps by providing an open-context grounded architecture that allows students to upload their specific materials, combined with a persistent relational database that powers a diagnostic learning analytics dashboard.
 
 ---
 
 ## 2.3 Chapter Summary
 Chapter Two has reviewed the theoretical and empirical literature surrounding the integration of Generative AI and learning analytics in higher education. The literature demonstrates that while Generative AI possesses immense potential to support personalized, self-regulated learning (Chang et al., 2023; Hartley, 2024), its unstructured deployment in commercial tools introduces risks of conceptual hallucinations and challenges to academic integrity (Balalle & Pannilage, 2025). 
 
-To resolve the challenge of curriculum alignment, Retrieval-Augmented Generation (RAG) serves as a robust architectural solution, ensuring the AI's outputs are grounded in verified, student-uploaded materials. Furthermore, the integration of student-facing learning analytics dashboards completes the self-regulated learning loop, providing students with the visual diagnostic data required for active self-reflection and targeted revision.
+To resolve the challenge of curriculum alignment, direct document grounding serves as a robust architectural solution, ensuring the AI's outputs are grounded in verified, student-uploaded materials. Furthermore, the integration of student-facing learning analytics dashboards completes the self-regulated learning loop, providing students with the visual diagnostic data required for active self-reflection and targeted revision.
 
-The review of related works highlights a clear **research and development gap**: existing systems are either closed-curriculum tutoring bots (e.g., Khanmigo), static study aids lacking interactive dialogue (e.g., Quizlet), or untracked general chatbots (e.g., ChatGPT). There is a distinct lack of a unified, open-context revision system that combines MERN-backed performance analytics with RAG-grounded generative tutoring. The proposed *Revisio* system is designed to fill this gap, providing university students with a structured, ethical, and highly personalized study companion.
+The review of related works highlights a clear **research and development gap**: existing systems are either closed-curriculum tutoring bots (e.g., Khanmigo), static study aids lacking interactive dialogue (e.g., Quizlet), or untracked general chatbots (e.g., ChatGPT). There is a distinct lack of a unified, open-context revision system that combines relational-backed performance analytics with context-grounded generative tutoring. The proposed *Revisio* system is designed to fill this gap, providing university students with a structured, ethical, and highly personalized study companion.
 
 ---
 
