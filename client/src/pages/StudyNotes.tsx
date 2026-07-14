@@ -41,11 +41,14 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
+const SUMMARIZE_COOLDOWN_MS = 60_000; // 60-second per-note cooldown
+
 const StudyNotes: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [showQuestionsDialog, setShowQuestionsDialog] = useState(false);
   const [isQuizMinimized, setIsQuizMinimized] = useState(false);
   const isMinimizingRef = useRef(false);
+  const summarizeCooldowns = useRef<Record<string, number>>({});
   const [showGeneratingDialog, setShowGeneratingDialog] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [showLoadingDialog, setShowLoadingDialog] = useState(false);
@@ -53,6 +56,10 @@ const StudyNotes: React.FC = () => {
   const [showAIResultDialog, setShowAIResultDialog] = useState(false);
   const [aiResultTitle, setAIResultTitle] = useState('');
   const [aiResultContent, setAIResultContent] = useState('');
+  // Summarize loading state
+  const [showSummarizeDialog, setShowSummarizeDialog] = useState(false);
+  const [summarizeProgress, setSummarizeProgress] = useState(0);
+  const [summarizingNoteId, setSummarizingNoteId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string>('');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [questionCount, setQuestionCount] = useState<number>(10);
@@ -213,12 +220,47 @@ const StudyNotes: React.FC = () => {
   };
 
   const handleSummarize = async (noteId: string) => {
+    // Client-side rate-limit guard
+    const cooldownUntil = summarizeCooldowns.current[noteId] ?? 0;
+    const remaining = Math.ceil((cooldownUntil - Date.now()) / 1000);
+    if (remaining > 0) {
+      toast({
+        title: 'Please wait',
+        description: `You can summarize this note again in ${remaining}s. This helps us stay within API limits.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSummarizingNoteId(noteId);
+    setShowSummarizeDialog(true);
+    setSummarizeProgress(0);
+
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      // Exponential decay toward 92%
+      const progress = Math.min(92, Math.round(92 * (1 - Math.pow(Math.E, -elapsed / 5000))));
+      setSummarizeProgress(progress);
+    }, 150);
+
     const result = await summarizeNote(noteId);
+    clearInterval(interval);
+
     if (result) {
-      setAIResultTitle('Summary');
-      setAIResultContent(result);
-      setShowAIResultDialog(true);
+      setSummarizeProgress(100);
+      // Set cooldown ONLY on success (don't punish failed requests)
+      summarizeCooldowns.current[noteId] = Date.now() + SUMMARIZE_COOLDOWN_MS;
+      setTimeout(() => {
+        setShowSummarizeDialog(false);
+        setSummarizingNoteId(null);
+        setAIResultTitle('Summary');
+        setAIResultContent(result);
+        setShowAIResultDialog(true);
+      }, 600);
     } else {
+      setShowSummarizeDialog(false);
+      setSummarizingNoteId(null);
       toast({
         title: 'Failed to summarize',
         description: summarizeError ?? 'Could not generate summary. Please try again.',
@@ -495,9 +537,21 @@ const StudyNotes: React.FC = () => {
                           <FileQuestion className="h-4 w-4 mr-2" />
                           Generate Quiz
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleSummarize(note.id)} disabled={aiLoading}>
-                          <FileText className="h-4 w-4 mr-2" />
-                          Summarize Notes
+                        <DropdownMenuItem
+                          onClick={() => handleSummarize(note.id)}
+                          disabled={summarizingNoteId === note.id}
+                        >
+                          {summarizingNoteId === note.id ? (
+                            <>
+                              <Sparkles className="h-4 w-4 mr-2 animate-spin" />
+                              Summarizing...
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="h-4 w-4 mr-2" />
+                              Summarize Notes
+                            </>
+                          )}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -600,7 +654,7 @@ const StudyNotes: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Generating Dialog Overlay with Dynamic Progress Bar */}
+      {/* Generating Quiz Dialog Overlay with Dynamic Progress Bar */}
       <Dialog open={showLoadingDialog} onOpenChange={() => { }}>
         <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl flex flex-col gap-5" onPointerDownOutside={(e) => e.preventDefault()}>
           <div className="flex items-center gap-3">
@@ -634,6 +688,48 @@ const StudyNotes: React.FC = () => {
           </div>
           <div className="text-[11px] text-muted-foreground/80 leading-relaxed italic bg-muted/40 p-3 rounded-lg border border-border/40 text-center">
             &quot;Every incorrect answer is a custom learning path generated just for you. Take your time, think through them!&quot;
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Summarize Notes Loading Dialog */}
+      <Dialog open={showSummarizeDialog} onOpenChange={() => { }}>
+        <DialogContent
+          className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl flex flex-col gap-5"
+          onPointerDownOutside={(e) => e.preventDefault()}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-primary/10 rounded-xl text-primary animate-pulse">
+              <Brain className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg text-foreground">Summarizing Your Notes</h3>
+              <p className="text-xs text-muted-foreground">AI is digesting your materials and extracting the key insights...</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 mt-2">
+            <div className="flex justify-between items-center text-sm font-semibold">
+              <span className="text-primary font-medium animate-pulse">
+                {summarizeProgress < 15 ? "Reading your notes..." :
+                 summarizeProgress < 35 ? "Identifying core topics..." :
+                 summarizeProgress < 55 ? "Extracting key takeaways..." :
+                 summarizeProgress < 75 ? "Structuring the summary..." :
+                 summarizeProgress < 92 ? "Polishing the output..." :
+                 "Almost there!"}
+              </span>
+              <span className="text-muted-foreground font-mono">{summarizeProgress}%</span>
+            </div>
+            <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-primary rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${summarizeProgress}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="text-[11px] text-muted-foreground/80 leading-relaxed italic bg-muted/40 p-3 rounded-lg border border-border/40 text-center">
+            &quot;A good summary isn&apos;t shorter — it&apos;s smarter. Review it actively, not passively!&quot;
           </div>
         </DialogContent>
       </Dialog>

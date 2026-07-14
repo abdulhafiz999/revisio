@@ -227,6 +227,7 @@ interface Recommendation {
 // ============================================================================
 
 const TOKEN_KEY = 'revisio_auth_token';
+const REFRESH_TOKEN_KEY = 'revisio_refresh_token';
 
 const tokenStorage = {
   get: (): string | null => {
@@ -235,8 +236,12 @@ const tokenStorage = {
   set: (token: string): void => {
     localStorage.setItem(TOKEN_KEY, token);
   },
+  setRefresh: (token: string): void => {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  },
   remove: (): void => {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
   },
 };
 
@@ -387,9 +392,12 @@ class ApiClient {
       { email, password }
     );
     
-    // Store token on successful login
+    // Store access token and refresh token on successful login
     if (response.data.data.session?.access_token) {
       tokenStorage.set(response.data.data.session.access_token);
+    }
+    if (response.data.data.session?.refresh_token) {
+      tokenStorage.setRefresh(response.data.data.session.refresh_token);
     }
     
     return response.data.data;

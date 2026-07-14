@@ -33,7 +33,7 @@ const Login: React.FC = () => {
     const result = await execute(formData.email, formData.password);
 
     if (result) {
-      login(result.user, result.session.access_token);
+      login(result.user, result.session.access_token, result.session.refresh_token);
 
       toast({
         title: 'Login successful',

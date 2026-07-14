@@ -53,7 +53,7 @@ const Register: React.FC = () => {
         navigate('/login');
       } else {
         // Auto-login after registration (email confirmation disabled)
-        login(result.user, result.session.access_token);
+        login(result.user, result.session.access_token, result.session.refresh_token);
         toast({
           title: 'Registration successful',
           description: 'Welcome to Revisio!',

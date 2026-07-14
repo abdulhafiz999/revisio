@@ -87,7 +87,7 @@ describe('AI Service Fallbacks', () => {
       expect(reply).toBe('Hello from fallback model!');
       expect(getModelMock).toHaveBeenCalledTimes(2);
       expect(getModelMock.mock.calls[0][0].model).toBe('gemini-2.5-flash');
-      expect(getModelMock.mock.calls[1][0].model).toBe('gemini-2.0-flash');
+      expect(getModelMock.mock.calls[1][0].model).toBe('gemini-2.5-pro');
     });
   });
 
@@ -127,7 +127,7 @@ describe('AI Service Fallbacks', () => {
       expect(questions[0].question_text).toBe('What is 2+2?');
       expect(getModelMock).toHaveBeenCalledTimes(2);
       expect(getModelMock.mock.calls[0][0].model).toBe('gemini-2.5-flash');
-      expect(getModelMock.mock.calls[1][0].model).toBe('gemini-2.0-flash');
+      expect(getModelMock.mock.calls[1][0].model).toBe('gemini-2.5-pro');
     });
   });
 });

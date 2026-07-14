@@ -111,6 +111,79 @@ export async function updateProgress(userId: string, isCorrect: boolean): Promis
 }
 
 /**
+ * Recompute all progress counters and streak from scratch by reading attempt_history.
+ * Call this after any attempt deletion (quiz reset or quiz delete) so user_progress
+ * never holds stale data.
+ */
+export async function recalculateUserProgress(userId: string): Promise<void> {
+  try {
+    const { data: attempts, error } = await supabaseAdmin
+      .from('attempt_history')
+      .select('is_correct, attempted_at')
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    const rows = attempts ?? [];
+
+    // Recount totals
+    const total_attempted = rows.length;
+    const correct_answers = rows.filter((r) => r.is_correct).length;
+    const wrong_answers = total_attempted - correct_answers;
+
+    // Collect distinct activity dates (YYYY-MM-DD), sorted newest-first
+    const distinctDates = Array.from(
+      new Set(rows.map((r) => normalizeActivityDate(r.attempted_at)!).filter(Boolean))
+    ).sort().reverse();
+
+    let streak_days = 0;
+    let last_activity_date: string | null = null;
+
+    if (distinctDates.length > 0) {
+      last_activity_date = distinctDates[0];
+      const today = todayDateString();
+
+      // Build yesterday's date string
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+      // Only start counting streak if the most recent activity is today or yesterday
+      if (last_activity_date === today || last_activity_date === yesterday) {
+        streak_days = 1;
+        for (let i = 1; i < distinctDates.length; i++) {
+          if (daysBetween(distinctDates[i], distinctDates[i - 1]) === 1) {
+            streak_days++;
+          } else {
+            break; // gap found, streak ends here
+          }
+        }
+      }
+    }
+
+    await supabaseAdmin
+      .from('user_progress')
+      .upsert(
+        {
+          user_id: userId,
+          total_attempted,
+          correct_answers,
+          wrong_answers,
+          streak_days,
+          last_activity_date,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      );
+
+    logger.info(`Recalculated progress for user ${userId}: streak=${streak_days}, total=${total_attempted}`);
+  } catch (error) {
+    logger.error('Error recalculating user progress:', error);
+    throw error;
+  }
+}
+
+/**
  * Get user progress stats
  */
 export async function getUserProgress(userId: string) {
@@ -443,6 +516,9 @@ export async function resetQuizAttempts(userId: string, noteId: string): Promise
 
     if (deleteError) throw deleteError;
 
+    // Recompute streak + totals from the remaining history
+    await recalculateUserProgress(userId);
+
     logger.info(`Reset attempts for user ${userId} and note/quiz ${noteId}`);
   } catch (error) {
     logger.error('Error resetting quiz attempts:', error);
@@ -451,10 +527,10 @@ export async function resetQuizAttempts(userId: string, noteId: string): Promise
 }
 
 /**
- * Delete an AI quiz (questions + attempts) for a specific note
- * Deleting the topic cascades to its questions and their attempt_history rows
+ * Delete an AI quiz (questions + attempts) for a specific note.
+ * Deleting the topic cascades to its questions and their attempt_history rows.
  */
-export async function deleteQuiz(noteId: string): Promise<void> {
+export async function deleteQuiz(noteId: string, userId: string): Promise<void> {
   try {
     // Cascade: topic → questions → attempt_history
     const { error } = await supabaseAdmin
@@ -464,6 +540,9 @@ export async function deleteQuiz(noteId: string): Promise<void> {
       .eq('course_id', AI_PRACTICE_COURSE_ID);
 
     if (error) throw error;
+
+    // Recompute streak + totals now that those attempts are gone
+    await recalculateUserProgress(userId);
 
     logger.info(`Deleted AI quiz (topic) for note ${noteId}`);
   } catch (error) {

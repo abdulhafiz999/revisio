@@ -230,8 +230,9 @@ export async function deleteQuizHandler(
 ): Promise<void> {
   try {
     const { noteId } = req.params;
+    const userId = (req as any).user.id;
 
-    await deleteQuiz(noteId);
+    await deleteQuiz(noteId, userId);
 
     const response: ApiSuccessResponse<null> = {
       success: true,
