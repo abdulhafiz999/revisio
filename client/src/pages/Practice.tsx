@@ -14,7 +14,8 @@ import {
   Calendar,
   Award,
   Trash2,
-  CheckCircle2
+  Trophy,
+  ArrowRight
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -48,12 +49,15 @@ const Practice: React.FC = () => {
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
 
-  // Bulk quiz submission state
-  const [localAnswers, setLocalAnswers] = React.useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = React.useState(false);
-  const [score, setScore] = React.useState<{ correct: number; total: number } | null>(null);
-  const [submittingAll, setSubmittingAll] = React.useState(false);
+  // One-at-a-time quiz state
+  const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0);
+  const [questionAnswered, setQuestionAnswered] = React.useState(false);
+  const [liveScore, setLiveScore] = React.useState(0);
+  const [quizFinished, setQuizFinished] = React.useState(false);
+  const [currentQuestionCorrect, setCurrentQuestionCorrect] = React.useState<boolean | null>(null);
+  const [currentQuestionPrompt, setCurrentQuestionPrompt] = React.useState<string>('');
   const [isReviewMode, setIsReviewMode] = React.useState(false);
+  const [isQuizMinimized, setIsQuizMinimized] = React.useState(false);
   const [generationProgress, setGenerationProgress] = React.useState(0);
   const [showLoadingDialog, setShowLoadingDialog] = React.useState(false);
 
@@ -282,43 +286,55 @@ const Practice: React.FC = () => {
     }
   };
 
-  // Reset bulk-submit state whenever a fresh set of questions loads (skip in review mode)
+  // Reset one-at-a-time quiz state whenever a fresh set of questions loads
   React.useEffect(() => {
-    if (practiceQuestions.length > 0 && !isReviewMode) {
-      setLocalAnswers({});
-      setSubmitted(false);
-      setScore(null);
+    if (practiceQuestions.length > 0) {
+      setCurrentQuestionIndex(0);
+      setQuestionAnswered(false);
+      setLiveScore(0);
+      setQuizFinished(false);
+      setCurrentQuestionCorrect(null);
+      setCurrentQuestionPrompt('');
     }
   }, [practiceQuestions]);
 
-  const handleSubmitAll = async () => {
-    if (Object.keys(localAnswers).length < practiceQuestions.length || submittingAll) return;
-    setSubmittingAll(true);
-    let correct = 0;
-    const startTime = Date.now();
-    try {
-      for (const question of practiceQuestions) {
-        const answer = localAnswers[question.id];
-        if (answer) {
-          try {
-            const result = await apiClient.submitAnswer({
-              question_id: question.id,
-              student_answer: answer,
-              time_spent_seconds: Math.round((Date.now() - startTime) / 1000),
-            });
-            if (result.is_correct) correct++;
-          } catch {
-            // continue submitting the rest even if one fails
-          }
-        }
-      }
-      setScore({ correct, total: practiceQuestions.length });
-      setSubmitted(true);
+  const handleAnswerReveal = (questionId: string, isCorrect: boolean) => {
+    if (isCorrect) setLiveScore((s) => s + 1);
+    setCurrentQuestionCorrect(isCorrect);
+    setQuestionAnswered(true);
+    const q = practiceQuestions[currentQuestionIndex];
+    if (q) {
+      setCurrentQuestionPrompt(
+        isCorrect
+          ? `I correctly answered the question: "${q.question_text}". Can you expand on this concept?`
+          : `I got this question wrong: "${q.question_text}". The correct answer is "${q.correct_answer}". Can you explain why?`
+      );
+    }
+  };
+
+  const handleContinue = async () => {
+    const nextIndex = currentQuestionIndex + 1;
+    if (nextIndex >= practiceQuestions.length) {
+      setQuizFinished(true);
       await refreshProgress();
       await fetchQuizzes();
-    } finally {
-      setSubmittingAll(false);
+    } else {
+      setCurrentQuestionIndex(nextIndex);
+      setQuestionAnswered(false);
+      setCurrentQuestionCorrect(null);
+      setCurrentQuestionPrompt('');
     }
+  };
+
+  const handleAskReviFromQuiz = () => {
+    // Minimize the quiz so the user can resume after chatting with Revi
+    setShowQuizDialog(false);
+    setIsQuizMinimized(true);
+    window.dispatchEvent(
+      new CustomEvent('open-revi-chat', {
+        detail: { message: currentQuestionPrompt }
+      })
+    );
   };
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
@@ -753,112 +769,95 @@ const Practice: React.FC = () => {
           }
         }}
       >
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden [&>button]:hidden">
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden [&>button]:hidden">
+          {/* ── Header ── */}
           <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-4">
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
-              Practice Quiz: {selectedNote?.title}
-            </DialogTitle>
-            <div className="flex items-center justify-between gap-3">
-              <DialogDescription className="text-left flex-1 min-w-0 m-0">
-                {isReviewMode
-                  ? `Reviewing ${practiceQuestions.length} ${difficulty} questions — your previous answers are shown below.`
-                  : `${practiceQuestions.length} ${difficulty} questions — select your answers then hit "Submit All" to see your score.`}
-              </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <DialogTitle className="text-base font-semibold flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-primary" />
+                  {isReviewMode ? 'Review Quiz' : 'Practice Quiz'}
+                </DialogTitle>
+                {!quizFinished && (
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                    Q {currentQuestionIndex + 1} / {practiceQuestions.length}
+                  </span>
+                )}
+              </div>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="shrink-0"
                 onClick={() => {
                   setShowQuizDialog(false);
                   refreshProgress();
                 }}
               >
-                Close Quiz
+                Close
               </Button>
             </div>
-          </DialogHeader>
-          <div className="overflow-y-auto px-6 py-4">
-            <div className="space-y-6">
-              {practiceQuestions.map((question, index) => (
-                <QuestionCard
-                  key={question.id}
-                  question={question}
-                  index={index}
-                  bulkMode={!isReviewMode && !submitted}
-                  externalAnswer={!isReviewMode ? (localAnswers[question.id] ?? null) : null}
-                  onAnswerSelect={(qId, answer) =>
-                    setLocalAnswers((prev) => ({ ...prev, [qId]: answer }))
-                  }
-                  revealed={!isReviewMode && submitted}
-                />
-              ))}
-            </div>
-
-            {/* Submit All button — visible while quiz not yet submitted (hidden in review mode) */}
-            {!isReviewMode && !submitted && (
-              <div className="mt-8 border-t pt-6 space-y-3">
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{Object.keys(localAnswers).length} / {practiceQuestions.length} answered</span>
-                  {Object.keys(localAnswers).length < practiceQuestions.length && (
-                    <span className="text-xs italic">Answer all questions to submit</span>
-                  )}
+            {/* Progress bar */}
+            {!quizFinished && (
+              <div className="mt-3">
+                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-primary rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${((currentQuestionIndex + (questionAnswered ? 1 : 0)) / practiceQuestions.length) * 100}%` }}
+                  />
                 </div>
-                <Button
-                  onClick={handleSubmitAll}
-                  disabled={Object.keys(localAnswers).length < practiceQuestions.length || submittingAll}
-                  className="w-full bg-gradient-primary hover:opacity-90 font-bold py-5 text-base rounded-xl flex items-center justify-center gap-2"
-                >
-                  {submittingAll ? (
-                    <>
-                      <Sparkles className="h-5 w-5 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-5 w-5" />
-                      Submit All Answers
-                    </>
-                  )}
-                </Button>
+                <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                  <span>{liveScore} correct so far</span>
+                  <span>{practiceQuestions.length - currentQuestionIndex - (questionAnswered ? 1 : 0)} remaining</span>
+                </div>
               </div>
             )}
+          </DialogHeader>
 
-            {/* Score banner — shown after submission */}
-            {submitted && score && (
-              <div className={cn(
-                "mt-8 p-6 rounded-2xl border text-center space-y-4",
-                score.correct / score.total >= 0.8
-                  ? "bg-success/10 border-success/20"
-                  : score.correct / score.total >= 0.5
-                  ? "bg-warning/10 border-warning/20"
-                  : "bg-destructive/10 border-destructive/20"
-              )}>
-                <div className="space-y-1">
-                  <p className="text-4xl font-bold">
-                    {score.correct} / {score.total}
+          <div className="overflow-y-auto px-6 py-5 flex-1">
+            {quizFinished ? (
+              /* ── Final Score Card ── */
+              <div className="flex flex-col items-center gap-6 py-4 animate-fade-in">
+                <div className={cn(
+                  "w-28 h-28 rounded-full flex items-center justify-center shadow-lg",
+                  liveScore / practiceQuestions.length >= 0.8
+                    ? "bg-success/15 border-4 border-success/30"
+                    : liveScore / practiceQuestions.length >= 0.5
+                    ? "bg-warning/15 border-4 border-warning/30"
+                    : "bg-destructive/15 border-4 border-destructive/30"
+                )}>
+                  <Trophy className={cn(
+                    "h-12 w-12",
+                    liveScore / practiceQuestions.length >= 0.8 ? "text-success"
+                    : liveScore / practiceQuestions.length >= 0.5 ? "text-warning"
+                    : "text-destructive"
+                  )} />
+                </div>
+
+                <div className="text-center space-y-2">
+                  <p className="text-5xl font-extrabold tracking-tight">
+                    {liveScore} / {practiceQuestions.length}
                   </p>
                   <p className={cn(
-                    "text-xl font-semibold",
-                    score.correct / score.total >= 0.8 ? "text-success"
-                    : score.correct / score.total >= 0.5 ? "text-warning"
+                    "text-2xl font-bold",
+                    liveScore / practiceQuestions.length >= 0.8 ? "text-success"
+                    : liveScore / practiceQuestions.length >= 0.5 ? "text-warning"
                     : "text-destructive"
                   )}>
-                    {Math.round((score.correct / score.total) * 100)}% Correct
+                    {Math.round((liveScore / practiceQuestions.length) * 100)}% Correct
                   </p>
-                  <p className="text-sm text-muted-foreground pt-1">
-                    {score.correct / score.total >= 0.8
+                  <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                    {liveScore / practiceQuestions.length >= 0.8
                       ? "🎉 Outstanding! You've mastered this material."
-                      : score.correct / score.total >= 0.5
-                      ? "👍 Good effort! Review the explanations below to improve."
-                      : "💪 Keep going! Study the explanations and try again."}
+                      : liveScore / practiceQuestions.length >= 0.5
+                      ? "👍 Good effort! A bit more practice and you'll nail it."
+                      : "💪 Keep going! Every attempt makes you stronger."}
                   </p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+
+                <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
                   <Button
                     variant="outline"
-                    size="sm"
+                    className="flex-1"
                     onClick={() => {
                       setShowQuizDialog(false);
                       setActiveTab('history');
@@ -866,24 +865,122 @@ const Practice: React.FC = () => {
                     }}
                   >
                     <Clock className="h-4 w-4 mr-2" />
-                    View Quiz History
+                    Quiz History
                   </Button>
                   <Button
-                    variant="outline"
-                    size="sm"
+                    className="flex-1 bg-gradient-primary hover:opacity-90"
                     onClick={() => {
                       setShowQuizDialog(false);
                       refreshProgress();
                     }}
                   >
-                    Return to Practice
+                    Done
                   </Button>
                 </div>
               </div>
-            )}
+            ) : practiceQuestions.length > 0 ? (
+              /* ── Current Question ── */
+              <div className="space-y-5">
+                <QuestionCard
+                  key={`pq-${currentQuestionIndex}`}
+                  question={practiceQuestions[currentQuestionIndex]}
+                  index={currentQuestionIndex}
+                  instantFeedback={!isReviewMode}
+                  revealed={isReviewMode}
+                  onAnswerReveal={handleAnswerReveal}
+                />
+
+                {/* Action row — shown after answering (or always in review mode) */}
+                {(questionAnswered || isReviewMode) && !quizFinished && (
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t animate-slide-up">
+                    {/* Ask Revi (only in live quiz, not review) */}
+                    {!isReviewMode && (
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "flex-1 bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)]",
+                          "text-white border-transparent hover:opacity-90 hover:scale-[1.01] transition-all",
+                          "flex items-center justify-center gap-2"
+                        )}
+                        onClick={handleAskReviFromQuiz}
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        {currentQuestionCorrect
+                          ? "Ask Revi to expand on this"
+                          : "Ask Revi to explain my mistake"}
+                      </Button>
+                    )}
+
+                    {/* Continue / Finish */}
+                    <Button
+                      className="flex-1 bg-gradient-primary hover:opacity-90 font-semibold flex items-center justify-center gap-2"
+                      onClick={handleContinue}
+                    >
+                      {currentQuestionIndex + 1 >= practiceQuestions.length ? (
+                        <>
+                          <Trophy className="h-4 w-4" />
+                          {isReviewMode ? 'Done' : 'Finish Quiz'}
+                        </>
+                      ) : (
+                        <>
+                          Continue
+                          <ArrowRight className="h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>
+      {/* Minimized Quiz Widget */}
+      {isQuizMinimized && practiceQuestions.length > 0 && !quizFinished && (
+        <div
+          onClick={() => {
+            setShowQuizDialog(true);
+            setIsQuizMinimized(false);
+          }}
+          className={cn(
+            "fixed bottom-24 lg:bottom-6 left-6 z-40 cursor-pointer animate-fade-in",
+            "flex items-center gap-3 p-4 rounded-xl border border-border shadow-lg",
+            "bg-card/90 backdrop-blur-md hover:bg-card hover:scale-105 transition-all duration-300",
+            "select-none max-w-sm sm:max-w-md"
+          )}
+        >
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 relative">
+            <Brain className="w-5 h-5 animate-pulse" />
+            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+            </span>
+          </div>
+          <div className="flex-1 min-w-0 pr-2">
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Practice Quiz Minimized</p>
+            <p className="text-sm font-semibold text-foreground truncate">
+              Q {currentQuestionIndex + 1} / {practiceQuestions.length} &middot; {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex-1 w-24 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${(currentQuestionIndex / practiceQuestions.length) * 100}%` }}
+                />
+              </div>
+              <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">
+                {liveScore} correct
+              </span>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            className="shrink-0 bg-gradient-primary text-primary-foreground hover:opacity-95 text-xs font-semibold px-3 py-1.5 h-8 rounded-lg shadow-sm"
+          >
+            Resume
+          </Button>
+        </div>
+      )}
     </MainLayout>
   );
 };

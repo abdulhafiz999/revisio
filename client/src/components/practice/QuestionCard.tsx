@@ -26,6 +26,13 @@ interface QuestionCardProps {
   onAnswerSelect?: (questionId: string, answer: string) => void;
   /** When true (after bulk submit), reveals correct/incorrect state for each card */
   revealed?: boolean;
+  /**
+   * One-at-a-time instant-feedback mode.
+   * When true: selecting an option immediately submits the answer and reveals the result.
+   * onAnswerReveal is called with (questionId, isCorrect) after the API responds.
+   */
+  instantFeedback?: boolean;
+  onAnswerReveal?: (questionId: string, isCorrect: boolean) => void;
 }
 
 type AnswerState = 'unanswered' | 'correct' | 'incorrect';
@@ -43,6 +50,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   externalAnswer = null,
   onAnswerSelect,
   revealed = false,
+  instantFeedback = false,
+  onAnswerReveal,
 }) => {
   const { recordAttempt, getQuestionAttempt } = useStudy();
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -53,25 +62,26 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // In bulk mode, ignore previous attempts (it's always a fresh quiz)
-  const previousAttempt = bulkMode ? undefined : getQuestionAttempt(question.id);
+  // In bulk mode or instant-feedback mode, ignore previous attempts (fresh quiz)
+  const previousAttempt = (bulkMode || instantFeedback) ? undefined : getQuestionAttempt(question.id);
 
-  // Restore state from a previous attempt (non-bulk mode only)
+  // Restore state from a previous attempt (non-bulk, non-instant mode only)
   React.useEffect(() => {
-    if (!bulkMode && previousAttempt) {
+    if (!bulkMode && !instantFeedback && previousAttempt) {
       setSelectedAnswer(previousAttempt.student_answer);
       setAnswerState(previousAttempt.is_correct ? 'correct' : 'incorrect');
     }
-  }, [previousAttempt, bulkMode]);
+  }, [previousAttempt, bulkMode, instantFeedback]);
 
-  // Collapse explanation when answers are freshly revealed
+  // Collapse explanation when answers are freshly revealed (bulk mode)
   React.useEffect(() => {
     if (revealed) setShowExplanation(false);
   }, [revealed]);
 
   // Derived display values:
-  //   bulk mode  → controlled by parent props
-  //   normal mode → local state
+  //   bulk mode         → controlled by parent props
+  //   instant-feedback  → local state (selectedAnswer / answerState)
+  //   normal mode       → local state
   const effectiveSelectedAnswer = bulkMode ? externalAnswer : selectedAnswer;
   const effectiveAnswerState: AnswerState = bulkMode
     ? revealed && externalAnswer
@@ -99,7 +109,35 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
     }
   };
 
+  /** Instant-feedback: tap an option → immediately submit and reveal result */
+  const handleInstantSelect = async (option: string) => {
+    if (answerState !== 'unanswered' || submitting) return;
+    setSelectedAnswer(option);
+    setSubmitting(true);
+    const timeSpent = Math.round((Date.now() - startTime) / 1000);
+    try {
+      const isCorrect = await recordAttempt(question.id, option, timeSpent);
+      const newState: AnswerState = isCorrect ? 'correct' : 'incorrect';
+      setAnswerState(newState);
+      setShowExplanation(true);
+      onAnswerReveal?.(question.id, isCorrect);
+    } catch {
+      // Still reveal locally even if API fails
+      const isCorrect = option === question.correct_answer;
+      const newState: AnswerState = isCorrect ? 'correct' : 'incorrect';
+      setAnswerState(newState);
+      setShowExplanation(true);
+      onAnswerReveal?.(question.id, isCorrect);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleOptionSelect = (option: string) => {
+    if (instantFeedback) {
+      handleInstantSelect(option);
+      return;
+    }
     if (effectiveAnswerState !== 'unanswered') return;
     if (bulkMode) {
       onAnswerSelect?.(question.id, option);
@@ -168,11 +206,13 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               <button
                 key={optIndex}
                 onClick={() => handleOptionSelect(option)}
-                disabled={effectiveAnswerState !== 'unanswered'}
+                disabled={effectiveAnswerState !== 'unanswered' || submitting}
                 className={cn(
                   "w-full text-left p-4 rounded-lg border-2 transition-all duration-200",
                   effectiveAnswerState === 'unanswered' && !isSelected && "border-border hover:border-primary/50 hover:bg-muted/50",
                   effectiveAnswerState === 'unanswered' && isSelected && "border-primary bg-primary/5",
+                  // Loading shimmer when submitting in instant mode
+                  submitting && isSelected && "animate-pulse border-primary/60 bg-primary/5",
                   showResult && isCorrectOption && "border-success bg-success/10",
                   showResult && isSelected && !isCorrectOption && "border-destructive bg-destructive/10",
                   showResult && !isSelected && !isCorrectOption && "opacity-50"
@@ -202,8 +242,8 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
         </div>
       )}
 
-      {/* Actions row — per-question Submit (non-bulk) + Hint button */}
-      {effectiveAnswerState === 'unanswered' && (
+      {/* Actions row — per-question Submit (non-bulk, non-instant) + Hint button */}
+      {effectiveAnswerState === 'unanswered' && !instantFeedback && (
         <div className="flex items-center gap-3">
           {!bulkMode && (
             <Button
@@ -230,6 +270,23 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
         </div>
       )}
 
+      {/* Hint button in instant-feedback mode (before answering) */}
+      {effectiveAnswerState === 'unanswered' && instantFeedback && question.hints && question.hints.length > 0 && (
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setShowHints(!showHints)}
+            className={cn(
+              "text-muted-foreground transition-all duration-200",
+              showHints && "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 hover:text-warning"
+            )}
+          >
+            <Lightbulb className="h-4 w-4 mr-2" />
+            {showHints ? 'Hide Hint' : 'Need a hint?'}
+          </Button>
+        </div>
+      )}
+
       {/* Hints (only before answering) */}
       {showHints && effectiveAnswerState === 'unanswered' && question.hints && question.hints.length > 0 && (
         <div className="mt-4 p-4 rounded-lg bg-warning/10 border border-warning/20 animate-slide-up">
@@ -251,24 +308,27 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
       {/* Explanation (only after answering) */}
       {effectiveAnswerState !== 'unanswered' && (
         <div className="mt-6 border-t pt-6">
-          <Button
-            variant="ghost"
-            onClick={() => setShowExplanation(!showExplanation)}
-            className="w-full justify-between hover:bg-muted"
-          >
-            <span className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="font-medium">AI-Powered Explanation</span>
-            </span>
-            {showExplanation ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </Button>
+          {/* In instant-feedback mode, explanation is auto-expanded */}
+          {!instantFeedback && (
+            <Button
+              variant="ghost"
+              onClick={() => setShowExplanation(!showExplanation)}
+              className="w-full justify-between hover:bg-muted"
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="font-medium">AI-Powered Explanation</span>
+              </span>
+              {showExplanation ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          )}
 
-          {showExplanation && (
-            <div className="mt-4 space-y-4 animate-slide-up">
+          {(showExplanation || instantFeedback) && (
+            <div className={cn("space-y-4 animate-slide-up", !instantFeedback && "mt-4")}>
               {/* Step-by-step explanation */}
               <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
                 <h4 className="font-medium text-primary mb-2">Step-by-Step Explanation</h4>
@@ -305,34 +365,36 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
                 </p>
               </div>
 
-              {/* Ask Revi Button */}
-              <div className="flex justify-center pt-2">
-                <Button
-                  id="ask-revi-btn"
-                  onClick={() => {
-                    const isCorrect = effectiveAnswerState === 'correct';
-                    const promptText = isCorrect
-                      ? `I correctly answered "${effectiveSelectedAnswer}" to the question: "${question.question_text}". Can you expand on this concept and provide deeper insights or real-world applications?`
-                      : `I answered "${effectiveSelectedAnswer}" to the question: "${question.question_text}" but the correct answer is "${question.correct_answer}". Can you explain my mistake and why the correct answer is right?`;
+              {/* Ask Revi Button — only in non-instant mode (instant mode renders it externally) */}
+              {!instantFeedback && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    id="ask-revi-btn"
+                    onClick={() => {
+                      const isCorrect = effectiveAnswerState === 'correct';
+                      const promptText = isCorrect
+                        ? `I correctly answered "${effectiveSelectedAnswer}" to the question: "${question.question_text}". Can you expand on this concept and provide deeper insights or real-world applications?`
+                        : `I answered "${effectiveSelectedAnswer}" to the question: "${question.question_text}" but the correct answer is "${question.correct_answer}". Can you explain my mistake and why the correct answer is right?`;
 
-                    window.dispatchEvent(
-                      new CustomEvent('open-revi-chat', {
-                        detail: { message: promptText }
-                      })
-                    );
-                  }}
-                  className={cn(
-                    "w-full bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)]",
-                    "text-white shadow-md hover:scale-[1.02] transition-all duration-300",
-                    "flex items-center justify-center gap-2"
-                  )}
-                >
-                  <Sparkles className="h-4 w-4 text-white" />
-                  {effectiveAnswerState === 'correct'
-                    ? "Ask Revi to expand on this"
-                    : "Ask Revi to explain my mistake"}
-                </Button>
-              </div>
+                      window.dispatchEvent(
+                        new CustomEvent('open-revi-chat', {
+                          detail: { message: promptText }
+                        })
+                      );
+                    }}
+                    className={cn(
+                      "w-full bg-gradient-to-r from-[hsl(175,60%,35%)] to-[hsl(175,55%,45%)]",
+                      "text-white shadow-md hover:scale-[1.02] transition-all duration-300",
+                      "flex items-center justify-center gap-2"
+                    )}
+                  >
+                    <Sparkles className="h-4 w-4 text-white" />
+                    {effectiveAnswerState === 'correct'
+                      ? "Ask Revi to expand on this"
+                      : "Ask Revi to explain my mistake"}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
