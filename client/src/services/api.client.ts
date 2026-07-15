@@ -641,6 +641,26 @@ class ApiClient {
     count: number,
     difficulty: string
   ): Promise<Question[]> {
+    if ((window as any).__simulateRateLimit) {
+      throw {
+        response: {
+          status: 429,
+          data: {
+            error: 'Gemini API free-tier limit reached for model "gemini-2.5-flash" (about 45s until you can retry). Try again later.'
+          }
+        }
+      };
+    }
+    if ((window as any).__simulateBusyError) {
+      throw {
+        response: {
+          status: 503,
+          data: {
+            error: 'Gemini is busy right now (high demand). Wait a minute and try again.'
+          }
+        }
+      };
+    }
     const response = await axiosInstance.post<ApiSuccessResponse<Question[]>>(
       '/api/ai/generate-questions',
       { note_id: noteId, count, difficulty }
@@ -649,6 +669,26 @@ class ApiClient {
   }
 
   async summarizeNote(noteId: string): Promise<string> {
+    if ((window as any).__simulateRateLimit) {
+      throw {
+        response: {
+          status: 429,
+          data: {
+            error: 'Gemini API free-tier limit reached for model "gemini-2.5-flash" (about 75s until you can retry). Try again later.'
+          }
+        }
+      };
+    }
+    if ((window as any).__simulateBusyError) {
+      throw {
+        response: {
+          status: 503,
+          data: {
+            error: 'Gemini is busy right now (high demand). Wait a minute and try again.'
+          }
+        }
+      };
+    }
     const response = await axiosInstance.post<ApiSuccessResponse<{ summary: string }>>(
       '/api/ai/summarize',
       { note_id: noteId }
@@ -688,6 +728,26 @@ class ApiClient {
   }
 
   async sendChatMessage(messages: ChatMessage[]): Promise<string> {
+    if ((window as any).__simulateRateLimit) {
+      throw {
+        response: {
+          status: 429,
+          data: {
+            error: 'Gemini API free-tier limit reached for model "gemini-2.5-flash" (about 50s until you can retry). Try again later.'
+          }
+        }
+      };
+    }
+    if ((window as any).__simulateBusyError) {
+      throw {
+        response: {
+          status: 503,
+          data: {
+            error: 'Gemini is busy right now (high demand). Wait a minute and try again.'
+          }
+        }
+      };
+    }
     const response = await axiosInstance.post<ApiSuccessResponse<{ reply: string }>>(
       '/api/ai/chat',
       { messages }

@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useStudy } from '@/context/StudyContext';
 import QuestionCard from '@/components/practice/QuestionCard';
 import { Link, useNavigate } from 'react-router-dom';
+import { AIErrorDialog } from '@/components/AIErrorDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -77,6 +78,14 @@ const StudyNotes: React.FC = () => {
   const [quizScore, setQuizScore] = useState<{ correct: number; total: number } | null>(null);
   const [submittingAll, setSubmittingAll] = useState(false);
 
+  // AI Error dialog state
+  const [aiError, setAIError] = useState<{
+    message: string;
+    onRetry?: () => void;
+    actionLabel?: string;
+    onClose: () => void;
+  } | null>(null);
+
   // Open a Cloudinary PDF URL inline in a new tab.
   // Problem: /raw/upload/ URLs are served by Cloudinary with Content-Disposition: attachment,
   // so window.open() always triggers a download instead of displaying inline.
@@ -127,12 +136,46 @@ const StudyNotes: React.FC = () => {
   const { data: notes, loading, execute: fetchNotes } = useApi(apiClient.getNotes);
   const { loading: uploading, execute: uploadPDF } = useApi(apiClient.uploadPDF);
   const { execute: deleteNote } = useApi(apiClient.deleteNote);
-  const { loading: generating, error: generateError, execute: generateQuestions } = useApi(apiClient.generateQuestions);
-  const { loading: aiLoading, error: summarizeError, execute: summarizeNote } = useApi(apiClient.summarizeNote);
+  const { loading: generating, error: generateError, execute: generateQuestions, reset: resetGenerate } = useApi(apiClient.generateQuestions);
+  const { loading: aiLoading, error: summarizeError, execute: summarizeNote, reset: resetSummarize } = useApi(apiClient.summarizeNote);
 
   useEffect(() => {
     fetchNotes();
   }, []);
+
+  // Handle summarize note error
+  useEffect(() => {
+    if (summarizeError) {
+      setAIError({
+        message: summarizeError,
+        onRetry: () => {
+          if (summarizingNoteId) {
+            handleSummarize(summarizingNoteId);
+          }
+        },
+        actionLabel: 'Summarize Notes',
+        onClose: () => {
+          resetSummarize();
+        }
+      });
+    }
+  }, [summarizeError, summarizingNoteId]);
+
+  // Handle generate questions error
+  useEffect(() => {
+    if (generateError) {
+      setAIError({
+        message: generateError,
+        onRetry: () => {
+          handleGenerateQuestions();
+        },
+        actionLabel: 'Generate Quiz',
+        onClose: () => {
+          resetGenerate();
+        }
+      });
+    }
+  }, [generateError]);
 
   useEffect(() => {
     const handleOpenReviChat = () => {
@@ -261,11 +304,7 @@ const StudyNotes: React.FC = () => {
     } else {
       setShowSummarizeDialog(false);
       setSummarizingNoteId(null);
-      toast({
-        title: 'Failed to summarize',
-        description: summarizeError ?? 'Could not generate summary. Please try again.',
-        variant: 'destructive',
-      });
+      // handled by useEffect and AIErrorDialog
     }
   };
 
@@ -294,11 +333,7 @@ const StudyNotes: React.FC = () => {
       }, 600);
     } else {
       setShowLoadingDialog(false);
-      toast({
-        title: 'Failed to generate questions',
-        description: generateError ?? 'Could not generate questions from this note. Please try again.',
-        variant: 'destructive',
-      });
+      // handled by useEffect and AIErrorDialog
     }
   };
 
@@ -967,6 +1002,20 @@ const StudyNotes: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* AI Error Dialog */}
+      {aiError && (
+        <AIErrorDialog
+          open={true}
+          errorMessage={aiError.message}
+          onRetry={aiError.onRetry}
+          actionLabel={aiError.actionLabel}
+          onClose={() => {
+            aiError.onClose();
+            setAIError(null);
+          }}
+        />
+      )}
 
     </MainLayout>
   );
