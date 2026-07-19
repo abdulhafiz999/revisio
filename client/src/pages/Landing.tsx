@@ -295,7 +295,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* Learning reminder */}
-      <section className="py-12 sm:py-16">
+      {/* <section className="py-12 sm:py-16">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="p-6 sm:p-8 rounded-2xl bg-warning/10 border border-warning/20 text-center">
             <p className="text-sm sm:text-base text-muted-foreground">
@@ -305,7 +305,7 @@ const Landing: React.FC = () => {
             </p>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* CTA */}
       <section className="border-t bg-muted/30 py-16 sm:py-20">
