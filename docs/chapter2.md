@@ -1,4 +1,4 @@
-# CHAPTER TWO: LITERATURE REVIEW
+# CHAPTER TWO: LITERATURE REVIEW 
 
 ## 2.1 Introduction
 The integration of Artificial Intelligence (AI) in education (AIEd) represents a profound technological and pedagogical paradigm shift in higher education. Historically, academic revision and examination preparation have relied on static instructional materials, such as textbook chapters, lecture notes, and printed past question papers. In this traditional model, students often engage in passive learning or rote memorization due to the absence of active, real-time feedback. While personalized tutoring has long been recognized as the most effective method to address individual learning gaps, the resource-constrained environment of modern higher education makes one-on-one human tutoring financially and logistically unfeasible for the vast majority of students.
